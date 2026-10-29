@@ -11,7 +11,7 @@ Estado inicial: `3c9b3b4`, árvore limpa. Reutilizar Node 24 e pnpm em `.tools/n
 | --- | --- | --- |
 | 8 | Concluída e validada | Auditoria do MVP, retenção de histórico, AuditLog transacional, migração aditiva e teste com registros antigos |
 | 9 | Concluída e validada | Organização, revisões, BDD/feature e CSV com frontend/backend/banco/testes |
-| 10 | Não iniciada | Planos reutilizáveis, versões, builds e ambientes |
+| 10 | Em andamento — 10.1 | Planos reutilizáveis, versões, builds e ambientes |
 | 11 | Não iniciada | Execução guiada, rascunhos, autoria, duração e fluxo contextual de defeito |
 | 12 | Não iniciada | Defeitos, retestes e evidências privadas |
 | 13 | Não iniciada | Requisitos e rastreabilidade |
@@ -81,4 +81,10 @@ Estado inicial: `3c9b3b4`, árvore limpa. Reutilizar Node 24 e pnpm em `.tools/n
 
 ## Próxima ação
 
-Fase 9 concluída. Commit local 9.3: feat: importar e exportar casos CSV com prévia segura (hash no próximo registro). Iniciar fase 10 (planos reutilizáveis, versões/builds, ambientes, responsáveis, critérios e estados). Documentação oficial consultada: https://cucumber.io/docs/gherkin/reference/, https://cucumber.io/docs/gherkin/languages/ e fontes/types oficiais dos pacotes instalados. O formulário Field existente foi compartilhado para garantir rótulos explícitos também em selects e textarea (falha de localização encontrada no E2E).
+Fase 9 concluída. Commit local 9.3: `91788e9` — feat: importar e exportar casos CSV com prévia segura. Fase 10.1 em implementação: CRUD com arquivamento de ambientes e versões, isolado por projeto, migração 006. Depois: planos/casos ordenados e revisões, builds/contexto por execução, responsáveis/datas/critérios, estados válidos e métricas/bugs contextualizados. Não marcar fase 10 concluída por apenas entregar cadastros. Documentação oficial consultada: https://cucumber.io/docs/gherkin/reference/, https://cucumber.io/docs/gherkin/languages/ e fontes/types oficiais dos pacotes instalados. O formulário Field existente foi compartilhado para garantir rótulos explícitos também em selects e textarea (falha de localização encontrada no E2E).
+
+## Ajuste de execução após feedback do usuário
+
+Uma entrega pequena por vez; análise apenas do trecho atual; saídas curtas; testes direcionados durante a entrega e suíte completa no fechamento da fase; não antecipar fases. Commits locais continuam autorizados e push proibido.
+
+- 10.1 validada: ambientes e versões com criação/edição/arquivamento, autorização por projeto e auditoria transacional. Migração 006 preserva dados anteriores. Quatro testes direcionados de integração/migração, E2E CSV com cadastros, TypeScript e lint passaram. Próxima entrega: planos reutilizáveis com casos ordenados e revisões preservadas.

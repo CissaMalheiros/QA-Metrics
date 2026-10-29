@@ -47,6 +47,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Field } from "@/components/ui/field";
 import { request } from "@/lib/api-client";
 import { CaseLibrary } from "@/components/case-library";
+import { ProjectContext } from "@/components/project-context";
 import { caseCode, caseStateLabels, caseTypeLabels, suitePath, type LibraryCase as Case, type Suite } from "@/domain/cases";
 import { GherkinSource } from "@/components/feature-editor";
 
@@ -109,7 +110,7 @@ type Overview = {
   workspace: { name: string };
 };
 type Detail = { project: Project; cases: Case[]; runs: Run[]; bugs: Bug[]; suites: Suite[] };
-type Tab = "overview" | "projects" | "cases" | "runs" | "bugs" | "import";
+type Tab = "overview" | "projects" | "cases" | "runs" | "bugs" | "import" | "context";
 type Editor = {
   kind: "project" | "case" | "run" | "bug";
   value?: Project | Case | Bug;
@@ -270,7 +271,7 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
   useEffect(() => { navigationProject.current = projectId; }, [projectId]);
   const requestedTab = searchParams.get("tab") ?? "overview";
   const validTabs = projectId
-    ? ["overview", "cases", "runs", "bugs", "import"]
+    ? ["overview", "cases", "runs", "bugs", "import", "context"]
     : ["overview", "projects"];
   const tab = (
     validTabs.includes(requestedTab) ? requestedTab : "overview"
@@ -491,6 +492,7 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
     runs: "Ciclos de teste",
     bugs: "Bugs",
     import: "Importar resultados",
+    context: "Ambientes e versões",
   };
   return (
     <div className="app-layout">
@@ -698,6 +700,7 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
                     ["runs", "Ciclos", Play],
                     ["bugs", "Bugs", BugIcon],
                     ["import", "Importar XML", Upload],
+                    ["context", "Ambientes e versões", FolderKanban],
                   ] as [Tab, string, LucideIcon][]
                 ).map(([id, label, Icon]) => (
                   <button
@@ -1052,6 +1055,7 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
                     }}
                   />
                 )}
+                {tab === "context" && projectId && <ProjectContext key={projectId} projectId={projectId} />}
                 {tab === "cases" && projectId && (
                   <CaseLibrary key={projectId} projectId={projectId} version={cases}
                     onCreate={() => openEditor("case")} onEdit={value => openEditor("case", value)}

@@ -17,7 +17,7 @@ import { ServiceError } from "@/server/errors";
 import { recordAudit } from "@/server/audit";
 
 type DataClient = Prisma.TransactionClient;
-const projectCounts = { testCases: true, runs: true, bugs: true, suites: true } as const;
+const projectCounts = { testCases: true, runs: true, bugs: true, suites: true, environments: true, releases: true } as const;
 const runInclude = { results: { orderBy: { id: "asc" as const } } } as const;
 const bugInclude = {
   testResult: {

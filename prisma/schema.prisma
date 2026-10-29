@@ -131,6 +131,8 @@ model Project {
   bugs Bug[]
   suites TestSuite[]
   nextCaseNumber Int @default(1)
+  environments Environment[]
+  releases Release[]
   @@index([workspaceId])
 }
 model TestCase {
@@ -265,4 +267,30 @@ model TestCaseRevision {
   createdAt DateTime @default(now())
   @@unique([testCaseId, revision])
   @@index([projectId, testCaseId])
+}
+
+model Environment {
+  id String @id @default(cuid())
+  projectId String
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name String
+  baseUrl String @default("")
+  archived Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([id, projectId])
+  @@unique([projectId, name])
+}
+
+model Release {
+  id String @id @default(cuid())
+  projectId String
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name String
+  version String
+  archived Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([id, projectId])
+  @@unique([projectId, version])
 }
