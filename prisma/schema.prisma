@@ -127,6 +127,8 @@ model Project {
   testCases TestCase[]
   runs TestRun[]
   bugs Bug[]
+  suites TestSuite[]
+  nextCaseNumber Int @default(1)
   @@index([workspaceId])
 }
 model TestCase {
@@ -134,6 +136,15 @@ model TestCase {
   projectId String
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
   externalKey String?
+  number Int @default(0)
+  suiteId String?
+  suite TestSuite? @relation(fields: [suiteId, projectId], references: [id, projectId], onDelete: Restrict)
+  tags String[] @default([])
+  type String @default("FUNCTIONAL")
+  state String @default("READY")
+  revision Int @default(1)
+  updatedBy String?
+  searchText String @default("")
   title String
   description String @default("")
   preconditions String @default("")
@@ -144,6 +155,10 @@ model TestCase {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   results TestResult[]
+  revisions TestCaseRevision[]
+  @@unique([projectId, number])
+  @@index([projectId, state, suiteId])
+  @@index([tags], type: Gin, map: "TestCase_tags_gin_idx")
   @@unique([projectId, externalKey])
   @@unique([id, projectId])
   @@index([projectId])
@@ -212,4 +227,32 @@ model AuditLog {
   metadata Json @default("{}")
   createdAt DateTime @default(now())
   @@index([workspaceId, projectId, createdAt])
+}
+
+model TestSuite {
+  id String @id @default(cuid())
+  projectId String
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name String
+  parentId String?
+  parent TestSuite? @relation("SuiteTree", fields: [parentId, projectId], references: [id, projectId], onDelete: Restrict)
+  children TestSuite[] @relation("SuiteTree")
+  cases TestCase[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([id, projectId])
+  @@index([projectId, parentId])
+}
+
+model TestCaseRevision {
+  id String @id @default(cuid())
+  projectId String
+  testCaseId String
+  testCase TestCase @relation(fields: [testCaseId, projectId], references: [id, projectId], onDelete: Cascade)
+  revision Int
+  snapshot Json
+  actorId String?
+  createdAt DateTime @default(now())
+  @@unique([testCaseId, revision])
+  @@index([projectId, testCaseId])
 }

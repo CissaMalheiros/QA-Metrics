@@ -12,6 +12,13 @@ import {
 } from "../../src/domain/schemas";
 
 describe("validação de entradas", () => {
+  it("normaliza tags e não reinicia classificação em PATCH parcial", () => {
+    const value = testCaseSchema.parse({ title: "Caso com tags", steps: ["Verificar"], expectedResult: "Correto", tags: ["@Smoke", "smoke", "REGRESSAO"] });
+    expect(value.tags).toEqual(["smoke", "regressao"]);
+    expect(testCaseUpdateSchema.parse({ title: "Outro título" })).toEqual({ title: "Outro título" });
+    expect(testCaseUpdateSchema.safeParse({ tags: ["@"] }).success).toBe(false);
+    expect(testCaseUpdateSchema.safeParse({ tags: ["duas palavras"] }).success).toBe(false);
+  });
   it("normaliza textos de projeto e aplica padrões", () => {
     expect(
       projectSchema.parse({ name: " Loja Web ", clientName: " Acme " }),

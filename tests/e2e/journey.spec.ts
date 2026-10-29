@@ -76,6 +76,28 @@ test("cadastro, login, dois projetos, caso, execução, bug e importação JUnit
   await expect(dialog).not.toBeVisible();
   await expect(page.getByRole("button", { name: `TC-001 ${caseTitle}`, exact: true })).toBeVisible();
 
+  await page.getByRole("button", { name: "Gerenciar suítes", exact: true }).click();
+  dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Nome da suíte", { exact: true }).fill("Checkout");
+  await dialog.getByRole("button", { name: "Salvar suíte", exact: true }).click();
+  await expect(dialog.getByRole("combobox", { name: "Suíte para editar", exact: true }).locator("option")).toHaveCount(2);
+  await dialog.getByRole("button", { name: "Fechar", exact: true }).click();
+  await page.getByRole("button", { name: `Editar ${caseTitle}`, exact: true }).click();
+  dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Suíte", { exact: true }).selectOption({ label: "Checkout" });
+  await dialog.getByLabel("Tags (separadas por vírgula)", { exact: true }).fill("smoke, regressao");
+  await dialog.getByRole("button", { name: "Salvar alterações", exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  await page.getByText("Mais filtros", { exact: true }).click();
+  await page.getByLabel("Tag", { exact: true }).fill("nao-existe");
+  await expect(page.getByText(/Nenhum caso corresponde aos filtros/)).toBeVisible();
+  await page.getByLabel("Tag", { exact: true }).fill("smoke");
+  await expect(page.getByRole("button", { name: `TC-001 ${caseTitle}`, exact: true })).toBeVisible();
+  await page.getByRole("button", { name: `Revisões de ${caseTitle}`, exact: true }).click();
+  dialog = page.getByRole("dialog");
+  await expect(dialog.getByText(/Revisão 2/)).toBeVisible();
+  await dialog.getByRole("button", { name: "Fechar", exact: true }).click();
+
   await page.getByRole("button", { name: "Ciclos", exact: true }).click();
   await page
     .getByRole("button", { name: "Novo ciclo", exact: true })

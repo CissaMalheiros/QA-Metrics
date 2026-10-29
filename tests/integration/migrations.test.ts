@@ -25,6 +25,10 @@ it("aplica a migração de auditoria sobre o MVP sem alterar registros históric
     expect((await client.query('SELECT row_to_json(r) AS value FROM "TestResult" r')).rows).toEqual(before);
     await client.query(`INSERT INTO "AuditLog" (id, "workspaceId", "projectId", "actorId", action) VALUES ('a', 'w', 'p', 'u', 'MIGRATION_VERIFIED')`);
     expect((await client.query('SELECT COUNT(*)::int AS count FROM "AuditLog"')).rows[0].count).toBe(1);
+    await client.query(readFileSync("prisma/migrations/202610290003_case_library/migration.sql", "utf8"));
+    expect((await client.query('SELECT row_to_json(r) AS value FROM "TestResult" r')).rows).toEqual(before);
+    expect((await client.query('SELECT "number", "revision" FROM "TestCase" WHERE id = $1', ['c'])).rows[0]).toEqual({ number: 1, revision: 1 });
+    expect((await client.query('SELECT snapshot FROM "TestCaseRevision" WHERE "testCaseId" = $1', ['c'])).rows[0].snapshot.title).toBe("Caso original");
   } finally {
     await client.query("ROLLBACK");
     await client.end();

@@ -17,7 +17,7 @@ import { ServiceError } from "@/server/errors";
 import { recordAudit } from "@/server/audit";
 
 type DataClient = Prisma.TransactionClient;
-const projectCounts = { testCases: true, runs: true, bugs: true } as const;
+const projectCounts = { testCases: true, runs: true, bugs: true, suites: true } as const;
 const runInclude = { results: { orderBy: { id: "asc" as const } } } as const;
 const bugInclude = {
   testResult: {
@@ -60,7 +60,7 @@ export async function getWorkspace(userId: string) {
   }
 }
 
-async function requireProject(
+export async function requireProject(
   userId: string,
   projectId: string,
   client: DataClient = db,
@@ -75,7 +75,7 @@ async function requireProject(
 
 // The project row serializes related writes, including completion/result edits.
 // A finished run cannot be changed by a request that raced with its completion.
-async function withProject<T>(
+export async function withProject<T>(
   userId: string,
   projectId: string,
   operation: string,
@@ -96,6 +96,12 @@ async function withProject<T>(
 function snapshot(testCase: TestCase): Prisma.InputJsonObject {
   return {
     id: testCase.id,
+    number: testCase.number,
+    revision: testCase.revision,
+    suiteId: testCase.suiteId,
+    tags: testCase.tags,
+    type: testCase.type,
+    state: testCase.state,
     title: testCase.title,
     description: testCase.description,
     preconditions: testCase.preconditions,
@@ -170,7 +176,7 @@ export async function createProject(userId: string, input: unknown) {
 
 export async function getProject(userId: string, projectId: string) {
   const project = await requireProject(userId, projectId);
-  const [cases, runs, bugs] = await Promise.all([
+  const [cases, runs, bugs, suites] = await Promise.all([
     db.testCase.findMany({
       where: { projectId, project: membership(userId) },
       orderBy: { createdAt: "desc" },
@@ -185,10 +191,12 @@ export async function getProject(userId: string, projectId: string) {
       include: bugInclude,
       orderBy: { createdAt: "desc" },
     }),
+    db.testSuite.findMany({ where: { projectId }, orderBy: { name: "asc" } }),
   ]);
   return {
     project,
     cases,
+    suites,
     runs,
     bugs,
     metrics: calculateMetrics(runs.flatMap((run) => run.results)),
@@ -248,9 +256,10 @@ export async function createCase(
   input: unknown,
 ) {
   const data = testCaseSchema.parse(input);
-  return withProject(userId, projectId, "CASE_CREATED", (client) =>
-    client.testCase.create({ data: { ...data, projectId, origin: "MANUAL" } }),
-  );
+  return withProject(userId, projectId, "CASE_CREATED", async (client) => {
+    await validateSuiteId(client, projectId, data.suiteId);
+    return client.testCase.create({ data: { ...data, projectId, origin: "MANUAL", updatedBy: userId } });
+  });
 }
 
 export async function updateCase(
@@ -265,7 +274,8 @@ export async function updateCase(
       where: { id: caseId, projectId },
     });
     if (!testCase) throw new ServiceError(404, "Caso de teste não encontrado.");
-    return client.testCase.update({ where: { id: caseId }, data });
+    await validateSuiteId(client, projectId, data.suiteId);
+    return client.testCase.update({ where: { id: caseId }, data: { ...data, updatedBy: userId } });
   });
 }
 
@@ -317,7 +327,7 @@ export async function createRun(
   const data = runSchema.parse(input);
   return withProject(userId, projectId, "RUN_CREATED", async (client) => {
     const cases = await client.testCase.findMany({
-      where: { projectId, id: { in: data.testCaseIds } },
+      where: { projectId, id: { in: data.testCaseIds }, state: { not: "ARCHIVED" } },
     });
     if (cases.length !== data.testCaseIds.length)
       throw new ServiceError(
@@ -526,6 +536,7 @@ export async function importJUnit(
             externalKey: testCase.externalKey,
             title: testCase.title,
             description: testCase.description,
+            updatedBy: userId,
             origin: "JUNIT" as const,
             priority: "MEDIUM" as const,
             steps: [],
@@ -626,4 +637,9 @@ export async function listAuditLogs(userId: string, projectId: string, before?: 
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: 100,
   });
+}
+
+export async function validateSuiteId(client: DataClient, projectId: string, suiteId: string | null | undefined) {
+  if (suiteId && !await client.testSuite.findFirst({ where: { id: suiteId, projectId }, select: { id: true } }))
+    throw new ServiceError(400, "A suíte deve pertencer a este projeto.");
 }

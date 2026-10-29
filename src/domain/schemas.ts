@@ -19,6 +19,8 @@ export const SEVERITIES = ["LOW", "MEDIUM", "HIGH", "CRITICAL"] as const;
 export const RUN_STATUSES = ["OPEN", "COMPLETED"] as const;
 export const RUN_SOURCES = ["MANUAL", "JUNIT_IMPORT"] as const;
 export const CASE_ORIGINS = ["MANUAL", "JUNIT"] as const;
+export const CASE_TYPES = ["FUNCTIONAL", "API", "UI", "INTEGRATION", "SECURITY", "EXPLORATORY"] as const;
+export const CASE_STATES = ["DRAFT", "READY", "ARCHIVED"] as const;
 
 const id = z.string().trim().min(1, "Identificador obrigatório.").max(128);
 const text = (max: number) =>
@@ -27,6 +29,8 @@ const title = text(200).min(
   3,
   "Informe um título com pelo menos 3 caracteres.",
 );
+const caseTags = z.array(text(50).regex(/^@?[\p{L}\p{N}_.:-]+$/u, "Use tags sem espaços, como smoke ou regressao.")).max(30)
+  .transform(values => [...new Set(values.map(value => value.replace(/^@/, "").toLowerCase()))]);
 
 export const projectSchema = z.object({
   name: text(120).min(2, "Informe o nome do projeto."),
@@ -46,6 +50,10 @@ export const testCaseSchema = z.object({
     .max(100, "Use no máximo 100 passos."),
   expectedResult: text(5000).min(1, "Informe o resultado esperado."),
   priority: z.enum(PRIORITIES).default("MEDIUM"),
+  suiteId: z.union([id, z.literal("")]).nullable().optional().transform(value => value || null),
+  tags: caseTags.default([]),
+  type: z.enum(CASE_TYPES).default("FUNCTIONAL"),
+  state: z.enum(CASE_STATES).default("READY"),
 });
 
 export const runSchema = z.object({
@@ -98,6 +106,10 @@ export const testCaseUpdateSchema = z
     steps: testCaseSchema.shape.steps,
     expectedResult: testCaseSchema.shape.expectedResult,
     priority: testCaseSchema.shape.priority.removeDefault(),
+    suiteId: z.union([id, z.literal("")]).nullable().transform(value => value || null),
+    tags: caseTags,
+    type: z.enum(CASE_TYPES),
+    state: z.enum(CASE_STATES),
   })
   .partial();
 

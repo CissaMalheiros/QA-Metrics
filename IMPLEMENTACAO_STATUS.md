@@ -10,7 +10,7 @@ Estado inicial: `3c9b3b4`, árvore limpa. Reutilizar Node 24 e pnpm em `.tools/n
 | Fase | Estado | Escopo/pendência |
 | --- | --- | --- |
 | 8 | Concluída e validada | Auditoria do MVP, retenção de histórico, AuditLog transacional, migração aditiva e teste com registros antigos |
-| 9 | Não iniciada | Suítes, códigos estáveis, filtros, lote, templates, BDD/feature, CSV e revisões |
+| 9 | Em andamento — 9.1 implementada | Organização/revisões validadas; BDD/feature e CSV ainda pendentes, não avançar à fase 10 |
 | 10 | Não iniciada | Planos reutilizáveis, versões, builds e ambientes |
 | 11 | Não iniciada | Execução guiada, rascunhos, autoria, duração e fluxo contextual de defeito |
 | 12 | Não iniciada | Defeitos, retestes e evidências privadas |
@@ -51,8 +51,19 @@ Estado inicial: `3c9b3b4`, árvore limpa. Reutilizar Node 24 e pnpm em `.tools/n
 - Docker Desktop indisponível: backend falha ao abrir socket dockerInference. Tentativa de reparo foi bloqueada pela revisão automática; não insistir nem alterar configurações do Docker.
 - Validação usou PostgreSQL 17 isolado em 127.0.0.1:55433, banco qa_metrics_evolution_test. Credenciais em .local/evolution-test.env, ignorado. Carregar esse arquivo no ambiente dos testes, sem substituir .env/.env.test.
 - Migração aplicada somente na base isolada; o banco original Docker permanece intacto e precisará de pnpm db:migrate quando voltar a funcionar.
-- Commit local da fase 8: feat: preservar histórico e auditar operações críticas (hash no próximo registro). Nenhum push realizado.
+- Commit local da fase 8: `70089a3` — feat: preservar histórico e auditar operações críticas. Nenhum push realizado.
+
+### Fase 9 — entregas incrementais
+
+- 9.1: suítes/subpastas, tipos, tags normalizadas, estados, códigos persistidos por projeto, busca por código/conteúdo/passos, filtros combinados, páginas de 50 casos, duplicação, movimentação/edição em lote e modelos funcional/API/exploratório.
+- Definições versionadas automaticamente pelo PostgreSQL, incluindo seed e XML; autoria nos serviços autenticados. Códigos alocados sob lock do projeto, nunca reciclados (lacunas são permitidas). Migração atribui números uma única vez aos registros existentes e preserva snapshots anteriores.
+- Casos arquivados não entram em novos ciclos; resultados anteriores continuam disponíveis.
+- Migração `202610290003_case_library` aplicada sobre a base isolada já populada. Teste também migra um fixture do MVP e verifica código/revisão e resultado antigo intactos.
+- 59 testes unitários e 24 de integração passaram; E2E de suíte, tags, revisão e jornada original passou (2 testes). O E2E encontrou uma corrida de navegação ao trocar projeto e aba rapidamente; corrigida no handler compartilhado e validada sem relaxar o teste de isolamento.
+- Lint, TypeScript e build passaram. Commit local da entrega 9.1: feat: organizar biblioteca e preservar revisões de casos (hash no próximo registro).
+- 9.2 pendente: formato BDD, parser oficial PT/EN, editor com realce/preview, import/export `.feature`, identidade/reconciliação e referências opcionais.
+- 9.3 pendente: CSV com prévia, mapeamento de colunas, validação por linha e exportação segura.
 
 ## Próxima ação
 
-Iniciar a fase 9: organização, códigos estáveis, revisões, Gherkin/feature e CSV, filtros e ações em lote. Usar parser oficial Gherkin; não executar arquivos enviados. Não avançar à fase 10 antes de validar todos os aceites da fase 9.
+Continuar 9.2 e 9.3, validando todos os aceites da fase 9 antes de avançar à fase 10. Documentação oficial Gherkin consultada em https://cucumber.io/docs/gherkin/reference/ e /languages/; nenhuma dependência nova instalada ainda.

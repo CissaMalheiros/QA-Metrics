@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { errorResponse, ServiceError } from "@/server/errors";
 import { assertSameOrigin, readJson, readJUnitUpload } from "@/server/http";
 import * as service from "@/server/services";
+import * as library from "@/server/case-library";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -49,7 +50,23 @@ async function handle(
       else if (method === "DELETE")
         result = await service.deleteProject(userId, projectId);
     } else if (collection === "projects" && projectId) {
-      if (resource === "audit" && path.length === 3 && method === "GET") {
+      if (resource === "library" && path.length === 3 && method === "GET") {
+        result = await library.getCaseLibrary(userId, projectId, Object.fromEntries(new URL(request.url).searchParams));
+      } else if (resource === "suites" && path.length === 3 && method === "POST") {
+        result = { suite: await library.saveSuite(userId, projectId, await readJson(request)) };
+        status = 201;
+      } else if (resource === "suites" && resourceId && path.length === 4 && method === "PATCH") {
+        result = { suite: await library.saveSuite(userId, projectId, await readJson(request), resourceId) };
+      } else if (resource === "suites" && resourceId && path.length === 4 && method === "DELETE") {
+        result = await library.deleteSuite(userId, projectId, resourceId);
+      } else if (resource === "cases" && resourceId === "bulk" && path.length === 4 && method === "PATCH") {
+        result = await library.bulkUpdateCases(userId, projectId, await readJson(request));
+      } else if (resource === "cases" && resourceId && action === "duplicate" && path.length === 5 && method === "POST") {
+        result = { testCase: await library.duplicateCase(userId, projectId, resourceId) };
+        status = 201;
+      } else if (resource === "cases" && resourceId && action === "revisions" && path.length === 5 && method === "GET") {
+        result = { revisions: await library.listCaseRevisions(userId, projectId, resourceId) };
+      } else if (resource === "audit" && path.length === 3 && method === "GET") {
         result = { events: await service.listAuditLogs(userId, projectId, new URL(request.url).searchParams.get("before") ?? undefined) };
       } else if (resource === "cases" && path.length === 3) {
         if (method === "GET")

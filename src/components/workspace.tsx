@@ -6,6 +6,7 @@ import {
   useCallback,
   useEffect,
   useId,
+  useRef,
   useState,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -45,6 +46,8 @@ import { authClient } from "@/lib/auth-client";
 import { calculateMetrics } from "@/domain/metrics";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
+import { request } from "@/lib/api-client";
+import { CaseLibrary, caseCode, caseStateLabels, caseTypeLabels, suitePath, type LibraryCase as Case, type Suite } from "@/components/case-library";
 
 type Project = {
   id: string;
@@ -55,17 +58,6 @@ type Project = {
   status: string;
   createdAt: string;
   _count?: { testCases: number; runs: number; bugs: number };
-};
-type Case = {
-  id: string;
-  title: string;
-  description: string;
-  preconditions: string;
-  steps: string[];
-  expectedResult: string;
-  priority: string;
-  origin: string;
-  createdAt: string;
 };
 type Result = {
   id: string;
@@ -113,7 +105,7 @@ type Overview = {
   bugs: Bug[];
   workspace: { name: string };
 };
-type Detail = { project: Project; cases: Case[]; runs: Run[]; bugs: Bug[] };
+type Detail = { project: Project; cases: Case[]; runs: Run[]; bugs: Bug[]; suites: Suite[] };
 type Tab = "overview" | "projects" | "cases" | "runs" | "bugs" | "import";
 type Editor = {
   kind: "project" | "case" | "run" | "bug";
@@ -157,25 +149,6 @@ const dateTime = (value: string) =>
     timeStyle: "short",
     timeZone: "America/Sao_Paulo",
   }).format(new Date(value));
-async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`/api/data/${path}`, {
-    ...options,
-    headers:
-      options?.body instanceof FormData
-        ? options.headers
-        : { "Content-Type": "application/json", ...options?.headers },
-  });
-  if (response.status === 401) {
-    window.location.reload();
-    throw new Error("Sua sessão terminou. Entre novamente.");
-  }
-  const body = await response.json().catch(() => {
-    throw new Error("O servidor não respondeu como esperado. Tente novamente.");
-  });
-  if (!response.ok)
-    throw new Error(body.error ?? "Não foi possível concluir a operação.");
-  return body as T;
-}
 function Badge({
   value,
   children,
@@ -311,6 +284,8 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const projectId = searchParams.get("project");
+  const navigationProject = useRef(projectId);
+  useEffect(() => { navigationProject.current = projectId; }, [projectId]);
   const requestedTab = searchParams.get("tab") ?? "overview";
   const validTabs = projectId
     ? ["overview", "cases", "runs", "bugs", "import"]
@@ -387,7 +362,15 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
     const timer = setTimeout(() => setNotice(""), 6000);
     return () => clearTimeout(timer);
   }, [notice]);
-  function navigate(nextTab: Tab, id: string | null = projectId) {
+  function navigate(nextTab: Tab, id: string | null = navigationProject.current) {
+    navigationProject.current = id;
+    if (id !== projectId) {
+      setDetail(null);
+      setLoading(true);
+      setError("");
+      setActiveRun(null);
+      setCaseDetail(null);
+    }
     const params = new URLSearchParams();
     if (id) params.set("project", id);
     if (nextTab !== "overview") params.set("tab", nextTab);
@@ -433,6 +416,7 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
     if (kind === "case")
       body = {
         ...values,
+        tags: String(values.tags ?? "").split(",").map(tag => tag.trim()).filter(Boolean),
         steps: String(values.steps)
           .split(/\r?\n/)
           .filter((step) => step.trim()),
@@ -1088,126 +1072,12 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
                     }}
                   />
                 )}
-                {tab === "cases" && (
-                  <section className="panel">
-                    <ListHeader
-                      title="Biblioteca de testes"
-                      description={`${cases.length} casos para garantir a qualidade do projeto.`}
-                      query={query}
-                      onQuery={setQuery}
-                      action="Novo caso"
-                      onAction={() => openEditor("case")}
-                    >
-                      <select
-                        aria-label="Filtrar por prioridade"
-                        value={filter}
-                        onChange={(e) => setFilter(e.target.value)}
-                      >
-                        <option value="">Todas as prioridades</option>
-                        {priorities.map((p) => (
-                          <option key={p} value={p}>
-                            {labels[p]}
-                          </option>
-                        ))}
-                      </select>
-                    </ListHeader>
-                    {cases.length ? (
-                      <div className="table-scroll">
-                        <table>
-                          <thead>
-                            <tr>
-                              <th>Caso de teste</th>
-                              <th>Prioridade</th>
-                              <th>Origem</th>
-                              <th>Criado em</th>
-                              <th>
-                                <span className="sr-only">Ações</span>
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {cases
-                              .filter(
-                                (c) =>
-                                  search(c.title) &&
-                                  (!filter || c.priority === filter),
-                              )
-                              .map((c, i) => (
-                                <tr key={c.id}>
-                                  <td>
-                                    <button
-                                      className="table-title"
-                                      onClick={() => setCaseDetail(c)}
-                                    >
-                                      <span className="case-number">
-                                        TC-{String(i + 1).padStart(3, "0")}
-                                      </span>
-                                      {c.title}
-                                    </button>
-                                  </td>
-                                  <td>
-                                    <Badge value={c.priority} />
-                                  </td>
-                                  <td>
-                                    <span className="origin-label">
-                                      {c.origin === "JUNIT" ? (
-                                        <FileCode2 size={14} />
-                                      ) : (
-                                        <ClipboardList size={14} />
-                                      )}
-                                      {labels[c.origin]}
-                                    </span>
-                                  </td>
-                                  <td className="muted">{date(c.createdAt)}</td>
-                                  <td>
-                                    <div className="row-actions">
-                                      <button
-                                        className="icon-button"
-                                        aria-label={`Editar ${c.title}`}
-                                        onClick={() => openEditor("case", c)}
-                                      >
-                                        <Pencil size={15} />
-                                      </button>
-                                      <button
-                                        className="icon-button danger-text"
-                                        aria-label={`Excluir ${c.title}`}
-                                        onClick={() => {
-                                          setFormError("");
-                                          setDeletion({
-                                            kind: "case",
-                                            id: c.id,
-                                            title: c.title,
-                                          });
-                                        }}
-                                      >
-                                        <Trash2 size={15} />
-                                      </button>
-                                    </div>
-                                  </td>
-                                </tr>
-                              ))}
-                          </tbody>
-                        </table>
-                        {!cases.some(
-                          (c) =>
-                            search(c.title) &&
-                            (!filter || c.priority === filter),
-                        ) && (
-                          <div className="no-results">
-                            Nenhum caso corresponde aos filtros.
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <Empty
-                        icon={ClipboardList}
-                        title="Qualidade começa com um bom caso"
-                        text="Cadastre pré-condições, passos e o resultado esperado para orientar seus testes."
-                        action="Novo caso"
-                        onAction={() => openEditor("case")}
-                      />
-                    )}
-                  </section>
+                {tab === "cases" && projectId && (
+                  <CaseLibrary key={projectId} projectId={projectId} version={cases}
+                    onCreate={() => openEditor("case")} onEdit={value => openEditor("case", value)}
+                    onDetail={setCaseDetail} onChanged={refresh}
+                    onDelete={value => { setFormError(""); setDeletion({ kind: "case", id: value.id, title: value.title }); }}
+                  />
                 )}
                 {tab === "runs" && (
                   <section className="panel">
@@ -1416,7 +1286,7 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
             <ProjectFields project={editor.value as Project | undefined} />
           )}
           {editor?.kind === "case" && (
-            <CaseFields testCase={editor.value as Case | undefined} />
+            <CaseFields testCase={editor.value as Case | undefined} suites={detail?.suites ?? []} />
           )}
           {editor?.kind === "run" && (
             <>
@@ -1431,7 +1301,7 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
               <fieldset className="case-checklist">
                 <legend>Selecione os casos de teste</legend>
                 {cases.length ? (
-                  cases.map((c) => (
+                  cases.filter(c => c.state !== "ARCHIVED").map((c) => (
                     <label key={c.id}>
                       <input type="checkbox" name="testCaseIds" value={c.id} />
                       <span>{c.title}</span>
@@ -1941,9 +1811,25 @@ function ProjectFields({ project }: { project?: Project }) {
     </>
   );
 }
-function CaseFields({ testCase }: { testCase?: Case }) {
+function CaseFields({ testCase: original, suites }: { testCase?: Case; suites: Suite[] }) {
+  const [template, setTemplate] = useState("");
+  const templates: Record<string, Partial<Case>> = {
+    functional: { title: "Validar funcionalidade", description: "Objetivo do teste funcional", steps: ["Preparar os dados", "Executar a ação", "Conferir o resultado"], expectedResult: "O comportamento atende ao requisito.", type: "FUNCTIONAL", tags: ["regressao"] },
+    api: { title: "Validar resposta da API", preconditions: "Credenciais e dados de teste disponíveis", steps: ["Preparar método, URL e payload", "Enviar a requisição", "Validar status, contrato e conteúdo da resposta"], expectedResult: "A resposta respeita o contrato e as regras de negócio.", type: "API", tags: ["api"] },
+    exploratory: { title: "Explorar fluxo crítico", description: "Carta de exploração: riscos, objetivo e limite de tempo", steps: ["Definir objetivo e riscos", "Variar dados e caminhos", "Registrar observações e defeitos"], expectedResult: "Riscos investigados e descobertas registradas.", type: "EXPLORATORY", tags: ["exploratorio"] },
+  };
+  const testCase = original ?? templates[template];
   return (
     <>
+      {!original && <Field label="Aplicar modelo (substitui os campos)"><select value={template} onChange={event => setTemplate(event.target.value)}><option value="">Em branco</option><option value="functional">Funcional</option><option value="api">API</option><option value="exploratory">Exploratório orientado</option></select></Field>}
+      <div key={template}>
+      {original && <p>{caseCode(original.number)} · Revisão {original.revision}</p>}
+      <div className="form-grid">
+        <Field label="Suíte"><select name="suiteId" defaultValue={testCase?.suiteId ?? ""}><option value="">Sem suíte</option>{suites.map(suite => <option key={suite.id} value={suite.id}>{suitePath(suite, suites)}</option>)}</select></Field>
+        <Field label="Estado"><select name="state" defaultValue={testCase?.state ?? "READY"}>{Object.entries(caseStateLabels).map(([key, value]) => <option key={key} value={key}>{value}</option>)}</select></Field>
+        <Field label="Tipo"><select name="type" defaultValue={testCase?.type ?? "FUNCTIONAL"}>{Object.entries(caseTypeLabels).map(([key, value]) => <option key={key} value={key}>{value}</option>)}</select></Field>
+        <Field label="Tags (separadas por vírgula)"><input name="tags" maxLength={1500} defaultValue={testCase?.tags?.join(", ")} placeholder="smoke, regressao" /></Field>
+      </div>
       <Field label="Título">
         <input
           name="title"
@@ -1982,7 +1868,7 @@ function CaseFields({ testCase }: { testCase?: Case }) {
       <Field label="Passos (um por linha)">
         <textarea
           name="steps"
-          defaultValue={testCase?.steps.join("\n")}
+          defaultValue={testCase?.steps?.join("\n")}
           required
           rows={4}
           maxLength={20000}
@@ -2001,6 +1887,7 @@ function CaseFields({ testCase }: { testCase?: Case }) {
           placeholder="O usuário acessa seu dashboard."
         />
       </Field>
+      </div>
     </>
   );
 }
