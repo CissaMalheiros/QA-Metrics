@@ -49,7 +49,9 @@ async function handle(
       else if (method === "DELETE")
         result = await service.deleteProject(userId, projectId);
     } else if (collection === "projects" && projectId) {
-      if (resource === "cases" && path.length === 3) {
+      if (resource === "audit" && path.length === 3 && method === "GET") {
+        result = { events: await service.listAuditLogs(userId, projectId, new URL(request.url).searchParams.get("before") ?? undefined) };
+      } else if (resource === "cases" && path.length === 3) {
         if (method === "GET")
           result = { cases: await service.listCases(userId, projectId) };
         else if (method === "POST") {

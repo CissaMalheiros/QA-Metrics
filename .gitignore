@@ -13,3 +13,4 @@ test-results/
 .local/
 .agents/
 skills-lock.json
+/AGENTS.md

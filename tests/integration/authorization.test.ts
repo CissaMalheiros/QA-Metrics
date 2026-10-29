@@ -329,6 +329,45 @@ describe("isolamento real entre contas e projetos", () => {
 });
 
 describe("histórico e importações persistidos", () => {
+  it("recusa exclusão de projeto com histórico e permite arquivar sem perder resultados", async () => {
+    const before = await db.testResult.count({ where: { projectId: projectA } });
+    await expect(service.deleteProject(userA, projectA)).rejects.toMatchObject({ status: 409 });
+    await service.updateProject(userA, projectA, { status: "ARCHIVED" });
+    expect(await db.testResult.count({ where: { projectId: projectA } })).toBe(before);
+    await service.updateProject(userA, projectA, { status: "ACTIVE" });
+  });
+
+  it("audita mudanças na mesma transação e isola a consulta entre contas", async () => {
+    const before = await service.listAuditLogs(userA, projectA);
+    await expect(service.createRun(userA, projectA, { name: "Inválido", testCaseIds: [caseB] })).rejects.toThrow();
+    expect(await service.listAuditLogs(userA, projectA)).toHaveLength(before.length);
+    await service.updateCase(userA, projectA, caseA, { priority: "CRITICAL" });
+    const events = await service.listAuditLogs(userA, projectA);
+    expect(events.some(event => event.action === "CASE_UPDATED" && event.subjectId === caseA && event.actorId === userA)).toBe(true);
+    await expect(service.listAuditLogs(userB, projectA)).rejects.toMatchObject({ status: 404 });
+    await expect(service.listAuditLogs(userA, projectA, "data inválida")).rejects.toMatchObject({ status: 400 });
+  });
+
+  it("exclui projeto vazio preservando o evento de exclusão", async () => {
+    const project = await service.createProject(userA, { name: "Projeto vazio", clientName: "Cliente A" });
+    await service.deleteProject(userA, project.id);
+    expect(await db.project.findUnique({ where: { id: project.id } })).toBeNull();
+    expect(await db.auditLog.count({ where: { projectId: project.id, action: "PROJECT_DELETED" } })).toBe(1);
+  });
+
+  it("pagina auditoria sem perder eventos com a mesma data", async () => {
+    const project = await service.createProject(userA, { name: "Auditoria paginada", clientName: "Cliente A" });
+    await db.auditLog.createMany({ data: Array.from({ length: 101 }, () => ({
+      id: randomUUID(), workspaceId: project.workspaceId, projectId: project.id,
+      actorId: userA, action: "PAGINATION_FIXTURE", createdAt: new Date(0),
+    })) });
+    const first = await service.listAuditLogs(userA, project.id);
+    const second = await service.listAuditLogs(userA, project.id, first.at(-1)!.id);
+    expect(first).toHaveLength(100);
+    expect(second).toHaveLength(2);
+    expect(new Set([...first, ...second].map(event => event.id)).size).toBe(102);
+  });
+
   it("serializa atualização concorrente com encerramento e preserva o resultado final", async () => {
     const run = await service.createRun(userA, projectA, {
       name: "Ciclo com concorrência",

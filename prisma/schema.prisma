@@ -101,6 +101,7 @@ model Workspace {
   createdAt DateTime @default(now())
   members WorkspaceMember[]
   projects Project[]
+  auditLogs AuditLog[]
 }
 model WorkspaceMember {
   id String @id @default(cuid())
@@ -198,4 +199,17 @@ model Bug {
   updatedAt DateTime @updatedAt
   @@index([projectId, status])
   @@index([testResultId])
+}
+
+model AuditLog {
+  id String @id @default(cuid())
+  workspaceId String
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  projectId String
+  actorId String
+  action String
+  subjectId String?
+  metadata Json @default("{}")
+  createdAt DateTime @default(now())
+  @@index([workspaceId, projectId, createdAt])
 }

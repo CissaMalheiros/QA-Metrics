@@ -1490,10 +1490,10 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
       >
         <p className="delete-description">
           {deletion?.kind === "project"
-            ? "O projeto e todos os seus casos, ciclos, resultados e bugs serão excluídos. Esta ação é permanente."
+            ? "Somente projetos sem registros podem ser excluídos. Para preservar casos, ciclos, resultados e bugs, edite o projeto e escolha Arquivado."
             : deletion?.kind === "case"
               ? "A exclusão é permanente. Casos que já possuem resultados são preservados para manter o histórico."
-              : "Este bug será excluído permanentemente."}
+              : "Bugs vinculados a execuções são preservados e devem ser fechados. Bugs sem vínculo podem ser excluídos permanentemente."}
         </p>
         {formError && (
           <div className="alert alert-error" role="alert">

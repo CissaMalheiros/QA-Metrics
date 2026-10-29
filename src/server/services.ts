@@ -14,6 +14,7 @@ import {
 import { calculateMetrics } from "@/domain/metrics";
 import { JUnitImportError, parseJUnit } from "@/importers/junit";
 import { ServiceError } from "@/server/errors";
+import { recordAudit } from "@/server/audit";
 
 type DataClient = Prisma.TransactionClient;
 const projectCounts = { testCases: true, runs: true, bugs: true } as const;
@@ -77,13 +78,16 @@ async function requireProject(
 async function withProject<T>(
   userId: string,
   projectId: string,
+  operation: string,
   action: (client: DataClient) => Promise<T>,
 ) {
   return db.$transaction(
     async (client) => {
-      await requireProject(userId, projectId, client);
+      const project = await requireProject(userId, projectId, client);
       await client.$queryRaw`SELECT "id" FROM "Project" WHERE "id" = ${projectId} FOR UPDATE`;
-      return action(client);
+      const result = await action(client);
+      await recordAudit(client, { workspaceId: project.workspaceId, projectId, actorId: userId, action: operation }, result);
+      return result;
     },
     { maxWait: 10_000, timeout: 60_000 },
   );
@@ -154,9 +158,13 @@ export async function createProject(userId: string, input: unknown) {
       403,
       "Você não tem acesso a este espaço de trabalho.",
     );
-  return db.project.create({
-    data: { ...data, workspaceId: workspace.id },
-    include: { _count: { select: projectCounts } },
+  return db.$transaction(async (client) => {
+    const project = await client.project.create({
+      data: { ...data, workspaceId: workspace.id },
+      include: { _count: { select: projectCounts } },
+    });
+    await recordAudit(client, { workspaceId: workspace.id, projectId: project.id, actorId: userId, action: "PROJECT_CREATED" }, project);
+    return project;
   });
 }
 
@@ -193,7 +201,7 @@ export async function updateProject(
   input: unknown,
 ) {
   const data = projectUpdateSchema.parse(input);
-  return withProject(userId, projectId, (client) =>
+  return withProject(userId, projectId, "PROJECT_UPDATED", (client) =>
     client.project.update({
       where: { id: projectId },
       data,
@@ -203,11 +211,11 @@ export async function updateProject(
 }
 
 export async function deleteProject(userId: string, projectId: string) {
-  await withProject(userId, projectId, async (client) => {
-    await client.bug.deleteMany({ where: { projectId } });
-    await client.testResult.deleteMany({ where: { projectId } });
-    await client.testRun.deleteMany({ where: { projectId } });
-    await client.testCase.deleteMany({ where: { projectId } });
+  await withProject(userId, projectId, "PROJECT_DELETED", async (client) => {
+    const populated = await client.project.findUniqueOrThrow({ where: { id: projectId }, include: { _count: { select: projectCounts } } });
+    if (Object.values(populated._count).some(count => count > 0)) {
+      throw new ServiceError(409, "Este projeto possui registros. Arquive-o para preservar seus casos, ciclos e defeitos.");
+    }
     await client.project.delete({ where: { id: projectId } });
   });
   return { deleted: true };
@@ -240,7 +248,7 @@ export async function createCase(
   input: unknown,
 ) {
   const data = testCaseSchema.parse(input);
-  return withProject(userId, projectId, (client) =>
+  return withProject(userId, projectId, "CASE_CREATED", (client) =>
     client.testCase.create({ data: { ...data, projectId, origin: "MANUAL" } }),
   );
 }
@@ -252,7 +260,7 @@ export async function updateCase(
   input: unknown,
 ) {
   const data = testCaseUpdateSchema.parse(input);
-  return withProject(userId, projectId, async (client) => {
+  return withProject(userId, projectId, "CASE_UPDATED", async (client) => {
     const testCase = await client.testCase.findFirst({
       where: { id: caseId, projectId },
     });
@@ -266,7 +274,7 @@ export async function deleteCase(
   projectId: string,
   caseId: string,
 ) {
-  return withProject(userId, projectId, async (client) => {
+  return withProject(userId, projectId, "CASE_DELETED", async (client) => {
     const testCase = await client.testCase.findFirst({
       where: { id: caseId, projectId },
     });
@@ -278,7 +286,7 @@ export async function deleteCase(
       );
     }
     await client.testCase.delete({ where: { id: caseId } });
-    return { deleted: true };
+    return { deleted: true, id: caseId };
   });
 }
 
@@ -307,7 +315,7 @@ export async function createRun(
   input: unknown,
 ) {
   const data = runSchema.parse(input);
-  return withProject(userId, projectId, async (client) => {
+  return withProject(userId, projectId, "RUN_CREATED", async (client) => {
     const cases = await client.testCase.findMany({
       where: { projectId, id: { in: data.testCaseIds } },
     });
@@ -344,7 +352,7 @@ export async function updateResult(
   input: unknown,
 ) {
   const data = resultUpdateSchema.parse(input);
-  return withProject(userId, projectId, async (client) => {
+  return withProject(userId, projectId, "RESULT_UPDATED", async (client) => {
     const run = await client.testRun.findFirst({
       where: { id: runId, projectId },
     });
@@ -376,7 +384,7 @@ export async function completeRun(
   projectId: string,
   runId: string,
 ) {
-  return withProject(userId, projectId, async (client) => {
+  return withProject(userId, projectId, "RUN_COMPLETED", async (client) => {
     const run = await client.testRun.findFirst({
       where: { id: runId, projectId },
       include: runInclude,
@@ -432,7 +440,7 @@ export async function createBug(
   input: unknown,
 ) {
   const data = bugSchema.parse(input);
-  return withProject(userId, projectId, async (client) => {
+  return withProject(userId, projectId, "BUG_CREATED", async (client) => {
     await validateBugResult(client, projectId, data.testResultId);
     return client.bug.create({
       data: { ...data, projectId },
@@ -448,7 +456,7 @@ export async function updateBug(
   input: unknown,
 ) {
   const data = bugUpdateSchema.parse(input);
-  return withProject(userId, projectId, async (client) => {
+  return withProject(userId, projectId, "BUG_UPDATED", async (client) => {
     const bug = await client.bug.findFirst({ where: { id: bugId, projectId } });
     if (!bug) throw new ServiceError(404, "Defeito não encontrado.");
     await validateBugResult(client, projectId, data.testResultId);
@@ -465,11 +473,12 @@ export async function deleteBug(
   projectId: string,
   bugId: string,
 ) {
-  return withProject(userId, projectId, async (client) => {
+  return withProject(userId, projectId, "BUG_DELETED", async (client) => {
     const bug = await client.bug.findFirst({ where: { id: bugId, projectId } });
     if (!bug) throw new ServiceError(404, "Defeito não encontrado.");
+    if (bug.testResultId) throw new ServiceError(409, "Este defeito possui vínculo com execução. Feche-o para preservar o histórico.");
     await client.bug.delete({ where: { id: bugId } });
-    return { deleted: true };
+    return { deleted: true, id: bugId };
   });
 }
 
@@ -493,7 +502,7 @@ export async function importJUnit(
     `Importação JUnit · ${new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date())}`
   ).slice(0, 200);
   try {
-    return await withProject(userId, projectId, async (client) => {
+    return await withProject(userId, projectId, "JUNIT_IMPORTED", async (client) => {
       const existing = await client.testRun.findUnique({
         where: {
           projectId_importedFileSha256: {
@@ -604,4 +613,17 @@ export async function importJUnit(
     }
     throw error;
   }
+}
+
+export async function listAuditLogs(userId: string, projectId: string, before?: string) {
+  const project = await requireProject(userId, projectId);
+  if (before && (before.length > 128 || !await db.auditLog.findFirst({
+    where: { id: before, workspaceId: project.workspaceId, projectId }, select: { id: true },
+  }))) throw new ServiceError(400, "Cursor de paginação inválido.");
+  return db.auditLog.findMany({
+    where: { workspaceId: project.workspaceId, projectId },
+    ...(before ? { cursor: { id: before }, skip: 1 } : {}),
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: 100,
+  });
 }

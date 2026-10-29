@@ -173,6 +173,13 @@ test("cadastro, login, dois projetos, caso, execução, bug e importação JUnit
   await page.getByRole("button", { name: "Importar resultados", exact: true }).click();
   await expect(page.getByText("Importação concluída", { exact: true })).toBeVisible();
 
+  await page.getByRole("button", { name: "Casos de teste", exact: true }).click();
+  await page.getByRole("button", { name: `Excluir ${caseTitle}`, exact: true }).click();
+  dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "Confirmar exclusão", exact: true }).click();
+  await expect(dialog.getByRole("alert")).toContainText("preservar o histórico");
+  await dialog.getByRole("button", { name: "Cancelar", exact: true }).click();
+
   // O segundo projeto não deve receber os casos criados ou importados no primeiro.
   await page.getByText(secondProject, { exact: true }).first().click();
   await page

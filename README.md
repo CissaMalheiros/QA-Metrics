@@ -83,7 +83,7 @@ A taxa de aprovação é `aprovados / (aprovados + reprovados) × 100`. O denomi
 
 O dashboard informa o escopo dos ciclos exibidos e permite selecionar um ciclo. A visão global agrega somente projetos acessíveis à conta; a visão de projeto usa somente seus próprios ciclos e bugs. Os totais de múltiplos ciclos representam resultados de execuções, portanto o mesmo caso pode ser contado em ciclos diferentes.
 
-Cada resultado guarda título e snapshot do caso no momento da criação do ciclo. Editar o caso depois não modifica esse snapshot. Ciclos encerrados não aceitam alterações nos resultados. Casos referenciados por resultados históricos não podem ser excluídos; excluir um projeto exige confirmação e remove seus dados relacionados.
+Cada resultado guarda título e snapshot do caso no momento da criação do ciclo. Editar o caso depois não modifica esse snapshot. Ciclos encerrados não aceitam alterações nos resultados. Casos referenciados por resultados históricos não podem ser excluídos; somente projetos sem registros podem ser excluídos. Projetos com casos, ciclos ou bugs devem ser arquivados.
 
 ## Importação segura
 
@@ -153,6 +153,28 @@ Código de interface em `src/app` e `src/components`; autenticação e banco em 
 Para alterar o schema durante desenvolvimento, use `pnpm exec prisma migrate dev --name nome_da_alteracao` e versione a migração resultante. Para aplicar alterações existentes, use `pnpm db:migrate`. Não use `prisma db push` para substituir o histórico.
 
 ## Persistência e escopo
+
+### Migrações e recuperação
+
+Antes de atualizar uma instância com dados, gere um backup em formato custom dentro do container e copie-o para armazenamento privado. No PowerShell, evite redirecionar saída binária com `>`:
+
+```powershell
+docker compose exec -T db sh -c 'pg_dump -U "$POSTGRES_USER" -Fc "$POSTGRES_DB" -f /tmp/qa-metrics.dump'
+New-Item -ItemType Directory -Force .local/backups
+docker compose cp db:/tmp/qa-metrics.dump .local/backups/qa-metrics.dump
+```
+
+Guarde uma cópia fora do computador. Para verificar uma restauração, crie um banco novo terminado em `_test` (nunca sobrescreva o banco em uso):
+
+```powershell
+docker compose exec -T db sh -c 'createdb -U "$POSTGRES_USER" qa_metrics_restore_test'
+docker compose cp .local/backups/qa-metrics.dump db:/tmp/qa-metrics-restore.dump
+docker compose exec -T db sh -c 'pg_restore -U "$POSTGRES_USER" --no-owner --exit-on-error -d qa_metrics_restore_test /tmp/qa-metrics-restore.dump'
+```
+
+Verifique registros e uma jornada antes de usar o banco restaurado. Para rollback de atualização, pare a aplicação, use a versão anterior do código e um banco restaurado compatível; não remova tabelas nem execute `migrate reset` no banco real. Esses comandos são o procedimento; a validação completa de recuperação será registrada na fase 17.
+
+Alterações críticas realizadas pelos serviços autenticados geram eventos transacionais. A consulta `GET /api/data/projects/:projectId/audit` exige acesso ao projeto e retorna até 100 eventos, sem conteúdo de senhas, XML ou observações. Use `?before=ID_DO_ULTIMO_EVENTO` para a página seguinte.
 
 O PostgreSQL do Compose usa volume persistente. `docker compose stop` interrompe o banco preservando os dados. O arquivo `.env`, banco local, diretórios gerados e diagnósticos de testes não devem ser adicionados ao Git. Guarde o `.env` de forma privada; a chave de sessão é necessária para manter as sessões existentes.
 
