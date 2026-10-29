@@ -23,7 +23,7 @@ async function handle(
     const method = request.method;
     if (method !== "GET") assertSameOrigin(request);
     const path = (await context.params).path ?? [];
-    const [collection, projectId, resource, resourceId, action, actionId] =
+    const [collection, projectId, resource, resourceId, action, actionId, detail] =
       path;
     let result: unknown;
     let status = 200;
@@ -156,6 +156,8 @@ async function handle(
           result = { run: await service.getRun(userId, projectId, resourceId) };
         else if (path.length === 5 && (action === "start" || action === "cancel") && method === "POST")
           result = { run: await service.transitionRun(userId, projectId, resourceId, action) };
+        else if (path.length === 7 && action === "results" && actionId && detail === "history" && method === "GET")
+          result = { events: await service.listResultEvents(userId, projectId, resourceId, actionId) };
         else if (
           path.length === 5 &&
           action === "complete" &&

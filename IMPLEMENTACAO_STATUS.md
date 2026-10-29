@@ -12,7 +12,7 @@ Estado inicial: `3c9b3b4`, árvore limpa. Reutilizar Node 24 e pnpm em `.tools/n
 | 8 | Concluída e validada | Auditoria do MVP, retenção de histórico, AuditLog transacional, migração aditiva e teste com registros antigos |
 | 9 | Concluída e validada | Organização, revisões, BDD/feature e CSV com frontend/backend/banco/testes |
 | 10 | Concluída e validada | Planos reutilizáveis, versões, builds e ambientes |
-| 11 | Não iniciada | Execução guiada, rascunhos, autoria, duração e fluxo contextual de defeito |
+| 11 | Concluída e validada | Execução guiada, rascunhos, autoria, duração e fluxo contextual de defeito |
 | 12 | Não iniciada | Defeitos, retestes e evidências privadas |
 | 13 | Não iniciada | Requisitos e rastreabilidade |
 | 14 | Não iniciada | Tokens por projeto, ingestão idempotente, Jenkins/GitHub Actions e vínculos BDD |
@@ -81,7 +81,7 @@ Estado inicial: `3c9b3b4`, árvore limpa. Reutilizar Node 24 e pnpm em `.tools/n
 
 ## Próxima ação
 
-Fase 10 concluída. Próxima ação: Fase 11, execução manual guiada, rascunhos persistidos, executor/duração/resultado real, histórico de correções e defeito contextual. Commit 10.1: 86191c0. Commit restante da fase 10 registrado na próxima atualização.
+Fases 8–11 concluídas e validadas. Próxima ação: iniciar Fase 12 pelo fluxo de defeito/reteste/histórico/evidências privadas, consultando apenas o trecho correspondente do plano. Nenhum código da Fase 12 foi iniciado. Commits da Fase 10: 86191c0 e 1adf1aa. Commit da Fase 11: feat: executar casos com rascunhos e histórico auditável (consultar git log).
 
 ## Ajuste de execução após feedback do usuário
 
@@ -94,3 +94,13 @@ Priorizar funcionalidades prontas, sem obrigação de fragmentar em pequenas ent
 - Execuções por plano ou seleção, ambientes/releases/builds, responsável validado no workspace, datas, notas e critérios. Snapshot de contexto e revisão preservado em cada execução, inclusive após renomear/arquivar cadastros.
 - Rascunho → em andamento → concluído/cancelado; bloqueio de transições e resultados inválidos; métricas e bugs apresentam o contexto original. Cancelados/rascunhos fora dos indicadores. Migração 007 aditiva, base original intacta.
 - Lint, types e build passaram; suíte de 81 unitários/42 integração passou, seguida dos testes novos de datas e BDD (total atual 82 unitários/43 integração). Cinco jornadas E2E passaram: quatro na suíte e planejamento na revalidação direcionada após corrigir seletor ambíguo de navegação. Rota de planos separada do carregamento de contexto e revalidada no E2E. Captura desktop inspecionada.
+
+- Commit local da fase 10: 1adf1aa — feat: planejar e executar testes por versão e build.
+- Fase 11 concluída: execução guiada/lista, progresso e filtros; resultado real, duração e executor; rascunho no servidor; proteção de alterações não salvas; histórico de resultados/correções; controle de versão e chaves idempotentes em resultados, ciclos e defeitos; fluxo de defeito preenchido a partir de FAILED. Migrações 008/009 somente na base isolada.
+
+### Validação da Fase 11
+- Suíte completa final: lint, 82 testes unitários, 48 de integração, 5 E2E Chromium e build passaram. Typecheck explícito executado ao fechar o commit.
+- E2E simula resposta de rascunho perdida após gravação e retry com a mesma chave; retoma após recarregar, registra falha, cria defeito contextual e corrige com histórico preservado. Testes de integração cobrem concorrência, reuso inválido de chaves, conflito de versão, autorização e migração com dados antigos.
+- Ajustes de compatibilidade validados: edição apenas de notas conserva horário/executor; NOT_RUN não alega execução; encerramento exige resolver rascunhos. UI impede encerrar/fechar/navegar com alterações não salvas; descarte explícito mantém resultado anterior.
+- Foram corrigidos uma corrida ao abrir histórico durante gravação e os waits do E2E para aguardar encerramento real. O teste antigo passou a descartar explicitamente uma mudança não salva antes de encerrar, mantendo a verificação de resultado anterior preservado.
+- Continuidade: implementar todas as funcionalidades da Fase 12 (prioridade/responsável/esperado-obtido, correção disponível, histórico/comentários, retestes, relações e evidências privadas), depois 13–18 em ordem. Nenhum push. Banco original Docker ainda não migrado; permanece a limitação já registrada.

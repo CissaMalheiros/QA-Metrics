@@ -15,6 +15,7 @@ import { calculateMetrics } from "@/domain/metrics";
 import { JUnitImportError, parseJUnit } from "@/importers/junit";
 import { ServiceError } from "@/server/errors";
 import { recordAudit } from "@/server/audit";
+import { createHash } from "node:crypto";
 
 type DataClient = Prisma.TransactionClient;
 const projectCounts = { testCases: true, runs: true, bugs: true, suites: true, environments: true, releases: true, plans: true } as const;
@@ -334,6 +335,14 @@ export async function createRun(
 ) {
   const data = runSchema.parse(input);
   return withProject(userId, projectId, "RUN_CREATED", async (client) => {
+    const hash = createHash("sha256").update(JSON.stringify(data)).digest("hex");
+    if (data.creationKey) {
+      const existing = await client.testRun.findUnique({ where: { projectId_creationKey: { projectId, creationKey: data.creationKey } }, include: runInclude });
+      if (existing) {
+        if (existing.creationHash !== hash) throw new ServiceError(409, "Esta solicitação de ciclo já foi usada com outros dados.");
+        return existing;
+      }
+    }
     const plan = data.planId ? await client.testPlan.findFirst({ where: { id: data.planId, projectId, archived: false }, include: { items: { orderBy: { position: "asc" } } } }) : null;
     if (data.planId && !plan) throw new ServiceError(400, "Selecione um plano ativo deste projeto.");
     const ids = plan ? plan.items.map(item => item.testCaseId) : data.testCaseIds;
@@ -347,7 +356,7 @@ export async function createRun(
       );
     const context = await resolveRunContext(client, projectId, data);
     const run = await client.testRun.create({
-      data: { projectId, name: data.name, source: "MANUAL", status: data.draft ? "DRAFT" : "OPEN", startedAt: data.draft ? null : new Date(),
+      data: { projectId, name: data.name, source: "MANUAL", status: data.draft ? "DRAFT" : "OPEN", startedAt: data.draft ? null : new Date(), creationKey: data.creationKey, creationHash: data.creationKey ? hash : undefined,
         planId: plan?.id, environmentId: data.environmentId, releaseId: data.releaseId, build: data.build, responsibleId: data.responsibleId,
         scheduledStart: data.scheduledStart, scheduledEnd: data.scheduledEnd, notes: data.notes, entryCriteria: data.entryCriteria, exitCriteria: data.exitCriteria,
         contextSnapshot: { ...context, plan: plan ? { id: plan.id, name: plan.name, revision: plan.revision } : null },
@@ -406,26 +415,44 @@ export async function updateResult(
       where: { id: runId, projectId },
     });
     if (!run) throw new ServiceError(404, "Ciclo não encontrado.");
-    if (run.status !== "OPEN" || run.source !== "MANUAL")
-      throw new ServiceError(
-        409,
-        "Ciclos encerrados ou importados não podem ser alterados.",
-      );
     const result = await client.testResult.findFirst({
       where: { id: resultId, runId, projectId },
     });
     if (!result)
       throw new ServiceError(404, "Resultado não encontrado neste ciclo.");
-    return client.testResult.update({
+    const hash = createHash("sha256").update(JSON.stringify(data)).digest("hex");
+    if (data.operationId) {
+      const event = await client.resultEvent.findUnique({ where: { resultId_operationId: { resultId, operationId: data.operationId } } });
+      if (event) {
+        if (event.requestHash !== hash) throw new ServiceError(409, "Esta operação já foi usada com outros dados.");
+        return result;
+      }
+    }
+    if (run.status !== "OPEN" || run.source !== "MANUAL") throw new ServiceError(409, "Ciclos encerrados ou importados não podem ser alterados.");
+    if (data.expectedVersion !== undefined && data.expectedVersion !== result.version) throw new ServiceError(409, "O resultado foi alterado. Recarregue para consultar a versão atual antes de salvar.");
+    const actor = await client.user.findUniqueOrThrow({ where: { id: userId }, select: { name: true } });
+    const resultSnapshot = (value: typeof result): Prisma.InputJsonObject => ({ status: value.status, notes: value.notes, actualResult: value.actualResult, durationMs: value.durationMs, executedAt: value.executedAt?.toISOString() ?? null, executorId: value.executorId, executorName: value.executorName, draft: value.draft });
+    await client.resultEvent.upsert({ where: { resultId_version: { resultId, version: result.version } }, update: {}, create: { resultId, projectId, version: result.version, snapshot: resultSnapshot(result) } });
+    const values = { status: data.status ?? result.status, notes: data.notes ?? result.notes, actualResult: data.actualResult ?? result.actualResult, durationMs: data.durationMs === undefined ? result.durationMs : data.durationMs };
+    const saved = await client.testResult.update({
       where: { id: resultId },
       data: {
-        ...data,
-        ...(data.status !== undefined
-          ? { executedAt: data.status === "NOT_RUN" ? null : new Date() }
-          : {}),
+        version: { increment: 1 },
+        ...(data.saveDraft ? { draft: values } : data.discardDraft ? { draft: Prisma.DbNull } : {
+          ...values, draft: Prisma.DbNull,
+          ...(data.status !== undefined ? { executorId: values.status === "NOT_RUN" ? null : userId, executorName: values.status === "NOT_RUN" ? null : actor.name, executedAt: values.status === "NOT_RUN" ? null : new Date() } : {}),
+        }),
       },
     });
+    await client.resultEvent.create({ data: { resultId, projectId, version: saved.version, actorId: userId, actorName: actor.name, operationId: data.operationId, requestHash: hash, snapshot: resultSnapshot(saved) } });
+    return saved;
   });
+}
+
+export async function listResultEvents(userId: string, projectId: string, runId: string, resultId: string) {
+  await requireProject(userId, projectId);
+  if (!await db.testResult.findFirst({ where: { id: resultId, projectId, runId } })) throw new ServiceError(404, "Resultado não encontrado neste ciclo.");
+  return db.resultEvent.findMany({ where: { resultId, projectId }, orderBy: { version: "desc" } });
 }
 
 export async function completeRun(
@@ -441,6 +468,7 @@ export async function completeRun(
     if (!run) throw new ServiceError(404, "Ciclo não encontrado.");
     if (run.status === "COMPLETED") return run;
     if (run.status !== "OPEN") throw new ServiceError(409, "Somente ciclos em andamento podem ser concluídos.");
+    if (run.results.some(result => result.draft !== null)) throw new ServiceError(409, "Finalize ou descarte os rascunhos antes de encerrar o ciclo.");
     return client.testRun.update({
       where: { id: runId },
       data: { status: "COMPLETED", finishedAt: new Date() },
@@ -491,9 +519,17 @@ export async function createBug(
 ) {
   const data = bugSchema.parse(input);
   return withProject(userId, projectId, "BUG_CREATED", async (client) => {
+    const hash = createHash("sha256").update(JSON.stringify(data)).digest("hex");
+    if (data.creationKey) {
+      const existing = await client.bug.findUnique({ where: { projectId_creationKey: { projectId, creationKey: data.creationKey } }, include: bugInclude });
+      if (existing) {
+        if (existing.creationHash !== hash) throw new ServiceError(409, "Esta solicitação de defeito já foi usada com outros dados.");
+        return existing;
+      }
+    }
     await validateBugResult(client, projectId, data.testResultId);
     return client.bug.create({
-      data: { ...data, projectId },
+      data: { ...data, projectId, creationHash: data.creationKey ? hash : undefined },
       include: bugInclude,
     });
   });

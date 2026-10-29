@@ -57,6 +57,7 @@ export const testCaseSchema = z.object({
 });
 
 export const runSchema = z.object({
+  creationKey: z.string().uuid().optional(),
   name: text(200).min(3, "Informe um nome com pelo menos 3 caracteres."),
   testCaseIds: z
     .array(id)
@@ -85,6 +86,7 @@ export const resultSchema = z.object({
 });
 
 export const bugSchema = z.object({
+  creationKey: z.string().uuid().optional(),
   title,
   description: text(10000).min(1, "Descreva o defeito."),
   stepsToReproduce: text(5000).default(""),
@@ -142,8 +144,14 @@ export const resultUpdateSchema = z
   .object({
     status: resultSchema.shape.status,
     notes: resultSchema.shape.notes.removeDefault(),
+    actualResult: text(10000),
+    durationMs: z.number().int().min(0).max(604800000).nullable(),
+    expectedVersion: z.number().int().min(0),
+    operationId: z.string().uuid(),
+    saveDraft: z.boolean(),
+    discardDraft: z.boolean(),
   })
-  .partial();
+  .partial().strict().refine(value => !(value.saveDraft && value.discardDraft), "Escolha salvar ou descartar o rascunho.");
 
 export type ProjectInput = z.infer<typeof projectSchema>;
 export type TestCaseInput = z.infer<typeof testCaseSchema>;

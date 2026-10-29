@@ -3,7 +3,6 @@
 import {
   useCallback,
   useEffect,
-  useId,
   useRef,
   useState,
 } from "react";
@@ -47,6 +46,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Field } from "@/components/ui/field";
 import { request } from "@/lib/api-client";
 import { CaseLibrary } from "@/components/case-library";
+import { ExecutionResults, type ExecutionResult as Result } from "@/components/execution-results";
 import { ProjectContext } from "@/components/project-context";
 import { TestPlans } from "@/components/test-plans";
 import { RunContextFields, RunContextSummary, runFormData, type RunContext } from "@/components/run-context";
@@ -62,25 +62,6 @@ type Project = {
   status: string;
   createdAt: string;
   _count?: { testCases: number; runs: number; bugs: number };
-};
-type Result = {
-  id: string;
-  testCaseId: string;
-  caseTitle: string;
-  category?: string;
-  caseSnapshot: {
-    title?: string;
-    steps?: string[];
-    expectedResult?: string;
-    preconditions?: string;
-    format?: string;
-    gherkinSource?: string;
-  };
-  status: string;
-  durationMs: number | null;
-  errorMessage: string | null;
-  notes: string;
-  executedAt: string | null;
 };
 type Run = {
   id: string;
@@ -303,6 +284,9 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
     setFilters((current) => ({ ...current, [tab]: value }));
   }
   const [runFilter, setRunFilter] = useState("latest");
+  const [dirtyResults, setDirtyResults] = useState<string[]>([]);
+  const [contextBug, setContextBug] = useState<Partial<Bug> | null>(null);
+  const [bugCreationKey, setBugCreationKey] = useState("");
   const [activeRun, setActiveRun] = useState<Run | null>(null);
   const [caseDetail, setCaseDetail] = useState<Case | null>(null);
   const [deletion, setDeletion] = useState<{
@@ -376,6 +360,7 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
   }
   function openEditor(kind: Editor["kind"], value?: Editor["value"]) {
     setFormError("");
+    if (kind === "bug") { setContextBug(null); setBugCreationKey(crypto.randomUUID()); }
     setEditor({ kind, value });
   }
   async function refreshAfterSave() {
@@ -1320,7 +1305,7 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
             </>
           )}
           {editor?.kind === "bug" && (
-            <BugFields bug={editor.value as Bug | undefined} runs={runs} />
+            <BugFields bug={(editor.value as Bug | undefined) ?? contextBug ?? undefined} runs={runs} creationKey={!editor.value ? bugCreationKey : undefined} />
           )}
           {formError && (
             <div className="alert alert-error" role="alert">
@@ -1435,7 +1420,10 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
       <Dialog
         open={!!activeRun}
         onOpenChange={(open) => {
-          if (!open && !busy) setActiveRun(null);
+          if (!open && !busy) {
+            if (dirtyResults.length) { setFormError("Salve ou descarte as alterações antes de fechar a execução."); return; }
+            setActiveRun(null);
+          }
         }}
         title={activeRun?.name ?? "Ciclo de teste"}
         description={
@@ -1464,30 +1452,25 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
             {activeRun.exitCriteria && <p>Critérios de saída: {activeRun.exitCriteria}</p>}
             {["DRAFT", "OPEN"].includes(activeRun.status) && <div className="library-actions">
               {activeRun.status === "DRAFT" && <Button disabled={busy} onClick={() => void mutate(() => request(`projects/${activeRun.projectId}/runs/${activeRun.id}/start`, { method: "POST", body: "{}" }), "Ciclo iniciado.")}>Iniciar ciclo</Button>}
-              <Button variant="outline" disabled={busy} onClick={() => void mutate(() => request(`projects/${activeRun.projectId}/runs/${activeRun.id}/cancel`, { method: "POST", body: "{}" }), "Ciclo cancelado. Histórico preservado.")}>Cancelar ciclo</Button>
+              <Button variant="outline" disabled={busy || !!dirtyResults.length} onClick={() => void mutate(() => request(`projects/${activeRun.projectId}/runs/${activeRun.id}/cancel`, { method: "POST", body: "{}" }), "Ciclo cancelado. Histórico preservado.")}>Cancelar ciclo</Button>
             </div>}
             {formError && (
               <div className="alert alert-error" role="alert">
                 {formError}
               </div>
             )}
-            {activeRun.results.map((result) => (
-              <ResultEditor
-                key={`${result.id}-${result.status}-${result.notes}-${activeRun.status}`}
-                result={result}
-                disabled={activeRun.status !== "OPEN" || busy || activeRun.source !== "MANUAL"}
-                onSave={async (values) => {
-                  await mutate(
-                    () =>
-                      request(
-                        `projects/${activeRun.projectId}/runs/${activeRun.id}/results/${result.id}`,
-                        { method: "PATCH", body: JSON.stringify(values) },
-                      ),
-                    "Resultado salvo.",
-                  );
-                }}
-              />
-            ))}
+            <ExecutionResults results={activeRun.results} disabled={activeRun.status !== "OPEN" || activeRun.source !== "MANUAL" || busy} dirty={dirtyResults}
+              onDirty={(id, value) => setDirtyResults(current => value ? [...new Set([...current, id])] : current.filter(item => item !== id))}
+              onSave={async (result, values) => {
+                const response = await request<{ result: Result }>(`projects/${activeRun.projectId}/runs/${activeRun.id}/results/${result.id}`, { method: "PATCH", body: JSON.stringify(values) });
+                await refreshAfterSave(); return response.result;
+              }}
+              onBug={result => {
+                if (dirtyResults.length) { setFormError("Salve ou descarte as alterações antes de criar o defeito."); return; }
+                setActiveRun(null); openEditor("bug");
+                setContextBug({ title: `Falha: ${result.caseTitle}`.slice(0, 200), description: result.actualResult || result.notes || "Falha identificada na execução manual.", stepsToReproduce: result.caseSnapshot.steps?.join("\n") ?? "", testResultId: result.id });
+              }}
+            />
             {activeRun.status === "OPEN" && (
               <div className="complete-run">
                 <p>
@@ -1495,7 +1478,7 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
                   no histórico, inclusive os casos não executados.
                 </p>
                 <Button
-                  disabled={busy}
+                  disabled={busy || !!dirtyResults.length}
                   onClick={async () => {
                     await mutate(
                       () =>
@@ -1907,9 +1890,10 @@ function CaseFields({ testCase: original, suites }: { testCase?: Case; suites: S
     </>
   );
 }
-function BugFields({ bug, runs }: { bug?: Bug; runs: Run[] }) {
+function BugFields({ bug, runs, creationKey }: { bug?: Partial<Bug>; runs: Run[]; creationKey?: string }) {
   return (
     <>
+      {creationKey && <input type="hidden" name="creationKey" value={creationKey} />}
       <Field label="Título">
         <input
           name="title"
@@ -1966,109 +1950,6 @@ function BugFields({ bug, runs }: { bug?: Bug; runs: Run[] }) {
         </select>
       </Field>
     </>
-  );
-}
-function ResultEditor({
-  result,
-  disabled,
-  onSave,
-}: {
-  result: Result;
-  disabled: boolean;
-  onSave: (values: { status: string; notes: string }) => Promise<void>;
-}) {
-  const [status, setStatus] = useState(result.status);
-  const [notes, setNotes] = useState(result.notes ?? "");
-  const id = useId();
-  const [saving, setSaving] = useState(false);
-  return (
-    <article className="result-editor">
-      <div className="result-editor-heading">
-        <h3>{result.caseTitle}</h3>
-        <Badge value={result.status} />
-      </div>
-      {result.category && <p>Categoria: {result.category}</p>}
-      {result.caseSnapshot.gherkinSource && <details><summary>Fonte Gherkin da execução</summary><GherkinSource source={result.caseSnapshot.gherkinSource} /></details>}
-      {result.caseSnapshot && (
-        <details>
-          <summary>Ver passos e resultado esperado</summary>
-          {result.caseSnapshot.preconditions && (
-            <p>Pré-condições: {result.caseSnapshot.preconditions}</p>
-          )}
-          <ol>
-            {result.caseSnapshot.steps?.map((step, i) => (
-              <li key={i}>{step}</li>
-            ))}
-          </ol>
-          <p>
-            <strong>Resultado esperado:</strong>{" "}
-            {result.caseSnapshot.expectedResult ||
-              "Conforme relatório importado."}
-          </p>
-        </details>
-      )}
-      {result.errorMessage && (
-        <pre className="result-error">{result.errorMessage}</pre>
-      )}
-      {result.durationMs !== null && (
-        <small className="muted">
-          Duração: {(result.durationMs / 1000).toLocaleString("pt-BR")} s
-        </small>
-      )}
-      <div className="form-grid">
-        <label htmlFor={`${id}-status`} className="field">
-          Resultado
-          <select
-            id={`${id}-status`}
-            aria-label={`Resultado de ${result.caseTitle}`}
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            disabled={disabled}
-          >
-            {resultStates.map((s) => (
-              <option key={s} value={s}>
-                {labels[s]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label htmlFor={`${id}-notes`} className="field">
-          Observações
-          <textarea
-            id={`${id}-notes`}
-            aria-label={`Observações de ${result.caseTitle}`}
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            disabled={disabled}
-            rows={2}
-            maxLength={5000}
-          />
-        </label>
-      </div>
-      {!disabled && (
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={saving}
-          onClick={async () => {
-            setSaving(true);
-            try {
-              await onSave({ status, notes });
-            } finally {
-              setSaving(false);
-            }
-          }}
-        >
-          <Check size={14} />
-          {saving ? "Salvando…" : "Salvar resultado"}
-        </Button>
-      )}
-      {result.executedAt && (
-        <small className="result-date">
-          Registrado em {dateTime(result.executedAt)}
-        </small>
-      )}
-    </article>
   );
 }
 function ImportPanel({

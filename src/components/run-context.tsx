@@ -12,6 +12,7 @@ export function RunContextSummary({ value }: { value?: RunContext }) {
 export function runFormData(form: FormData) {
   const value = (name: string) => String(form.get(name) ?? "");
   return {
+    ...(value("creationKey") ? { creationKey: value("creationKey") } : {}),
     name: value("name"), testCaseIds: form.getAll("testCaseIds"),
     ...(value("planId") ? { planId: value("planId") } : {}),
     ...(value("environmentId") ? { environmentId: value("environmentId") } : {}),
@@ -23,6 +24,7 @@ export function runFormData(form: FormData) {
   };
 }
 export function RunContextFields({ projectId }: { projectId: string }) {
+  const [creationKey] = useState(() => crypto.randomUUID());
   const [options, setOptions] = useState<Options | null>(null);
   const [error, setError] = useState("");
   const [retry, setRetry] = useState(0);
@@ -32,6 +34,7 @@ export function RunContextFields({ projectId }: { projectId: string }) {
     return () => { alive = false; };
   }, [projectId, retry]);
   return <fieldset className="form-stack"><legend>Contexto da execução</legend>
+    <input type="hidden" name="creationKey" value={creationKey} />
     {error && <p role="alert">{error} <button type="button" onClick={() => setRetry(value => value + 1)}>Tentar novamente</button></p>}
     {!options && !error && <p role="status">Carregando contexto…</p>}
     <Field label="Ambiente"><select name="environmentId" disabled={!options}><option value="">Não informado</option>{options?.environments.filter(value => !value.archived).map(value => <option key={value.id} value={value.id}>{value.name}</option>)}</select></Field>

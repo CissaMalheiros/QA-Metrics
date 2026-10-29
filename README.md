@@ -208,6 +208,8 @@ Planos de teste podem reunir casos tradicionais e BDD, com ordem, categoria e re
 
 Cadastre ambientes e versões por projeto e informe build, responsável, datas previstas, observações e critérios ao criar uma execução. Cada execução mantém suas próprias revisões e uma cópia do contexto: renomear ou arquivar cadastros não reescreve o histórico. Rascunhos precisam ser iniciados antes de registrar resultados; ciclos concluídos ou cancelados ficam preservados. Rascunhos e cancelados não entram nos indicadores de execução. O ambiente textual do MVP e ciclos anteriores continuam preservados; não se infere contexto ausente nos dados antigos.
 
+A execução manual oferece modo guiado, filtros de resultados, rascunhos salvos no servidor, resultado real, observações, duração e executor. Salve o rascunho antes de interromper; alterações ainda não salvas bloqueiam a navegação interna e acionam o aviso do navegador ao sair. Registros e correções mantêm histórico com autoria, e tentativas repetidas com a mesma chave não duplicam resultados ou defeitos. Uma falha salva pode abrir um defeito já preenchido e vinculado ao resultado original.
+
 Este MVP não inclui execução remota de testes, ingestão por API pública, integrações Jira/GitHub, colaboração avançada, IA, anexos de vídeo ou cobrança. A importação manual de XML funciona sem essas integrações.
 
 Documentação consultada para a configuração: [Prisma 7](https://www.prisma.io/docs/guides/upgrade-prisma-orm/v7), [Better Auth com Prisma](https://better-auth.com/docs/adapters/prisma), [Better Auth com Next.js](https://better-auth.com/docs/integrations/next) e [instalação do Next.js](https://nextjs.org/docs/app/getting-started/installation).

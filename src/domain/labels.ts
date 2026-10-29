@@ -23,8 +23,10 @@ export const bugStatusLabels = {
   CLOSED: "Fechado",
 } as const;
 export const runStatusLabels = {
+  DRAFT: "Rascunho",
   OPEN: "Em andamento",
   COMPLETED: "Finalizado",
+  CANCELED: "Cancelado",
 } as const;
 export const originLabels = {
   MANUAL: "Manual",

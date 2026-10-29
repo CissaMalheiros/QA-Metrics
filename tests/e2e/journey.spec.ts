@@ -64,6 +64,7 @@ test("reutiliza plano em duas builds e preserva revisão, contexto, estados e m�
   await dialog.locator("article").filter({ has: page.getByRole("heading", { name: "Validar compra planejada", exact: true }) }).getByRole("button", { name: "Salvar resultado", exact: true }).click();
   await dialog.getByRole("button", { name: "Encerrar ciclo", exact: true }).click();
   await expect(dialog.getByLabel("Resultado de Validar compra planejada", { exact: true })).toBeDisabled();
+  await expect(dialog.getByText("Histórico preservado", { exact: true })).toBeVisible();
   await dialog.getByRole("button", { name: "Fechar", exact: true }).click();
   await page.getByRole("button", { name: /Smoke build 401/ }).click();
   dialog = page.getByRole("dialog");
@@ -72,8 +73,45 @@ test("reutiliza plano em duas builds e preserva revisão, contexto, estados e m�
   await expect(articles.first()).toContainText("Validar cupom planejado");
   await expect(articles.first()).toContainText("Categoria: Cupons");
   await expect(dialog.getByLabel("Resultado de Validar compra planejada", { exact: true })).toHaveValue("NOT_RUN");
+  await dialog.getByRole("button", { name: "Modo guiado", exact: true }).click();
+  await dialog.getByLabel("Caso em execução", { exact: true }).selectOption({ label: "2. Validar compra planejada · Não executado" });
+  await expect(dialog.getByText("Comprar no checkout", { exact: true })).toBeVisible();
+  await dialog.getByLabel("Resultado de Validar compra planejada", { exact: true }).selectOption("FAILED");
+  await dialog.getByLabel("Resultado real de Validar compra planejada", { exact: true }).fill("Pagamento recusado indevidamente");
+  await dialog.getByLabel("Duração de Validar compra planejada", { exact: true }).fill("12.5");
+  await dialog.getByLabel("Observações de Validar compra planejada", { exact: true }).fill("Interrompido para investigar");
+  await expect(dialog.getByRole("button", { name: "Próximo caso", exact: true })).toBeDisabled();
+  let lostDraftResponse = false;
+  await page.route(`**/api/data/projects/${projectId}/runs/*/results/*`, async route => {
+    if (!lostDraftResponse && route.request().method() === "PATCH" && route.request().postDataJSON().saveDraft) {
+      lostDraftResponse = true; await route.fetch(); await route.abort("failed");
+    } else await route.continue();
+  });
+  await dialog.getByRole("button", { name: "Salvar rascunho", exact: true }).click();
+  await dialog.getByRole("button", { name: "Tentar salvar novamente", exact: true }).click();
+  await expect(dialog).toContainText("Rascunho salvo");
+  expect(lostDraftResponse).toBe(true);
+  await dialog.getByRole("button", { name: "Fechar", exact: true }).click();
+  await page.reload();
+  await page.getByRole("button", { name: /Smoke build 401/ }).click();
+  dialog = page.getByRole("dialog");
+  await expect(dialog.getByLabel("Resultado real de Validar compra planejada", { exact: true })).toHaveValue("Pagamento recusado indevidamente");
+  await expect(dialog.getByLabel("Duração de Validar compra planejada", { exact: true })).toHaveValue("12.5");
+  await dialog.locator("article").filter({ has: page.getByRole("heading", { name: "Validar compra planejada", exact: true }) }).getByRole("button", { name: "Salvar resultado", exact: true }).click();
+  await dialog.getByRole("button", { name: "Criar defeito deste resultado", exact: true }).click();
+  dialog = page.getByRole("dialog");
+  await expect(dialog.getByLabel("Título", { exact: true })).toHaveValue("Falha: Validar compra planejada");
+  await expect(dialog.getByLabel("Descrição", { exact: true })).toHaveValue("Pagamento recusado indevidamente");
+  await dialog.getByRole("button", { name: "Criar bug", exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  await page.getByRole("button", { name: /Smoke build 401/ }).click();
+  dialog = page.getByRole("dialog");
   await dialog.getByLabel("Resultado de Validar compra planejada", { exact: true }).selectOption("PASSED");
-  await articles.filter({ has: page.getByRole("heading", { name: "Validar compra planejada", exact: true }) }).getByRole("button", { name: "Salvar resultado", exact: true }).click();
+  await dialog.getByLabel("Resultado real de Validar compra planejada", { exact: true }).fill("Pedido criado após validar a configuração");
+  await dialog.locator("article").filter({ has: page.getByRole("heading", { name: "Validar compra planejada", exact: true }) }).getByRole("button", { name: "Salvar resultado", exact: true }).click();
+  await dialog.getByRole("button", { name: "Histórico de Validar compra planejada", exact: true }).click();
+  await expect(dialog.getByRole("region", { name: "Histórico de Validar compra planejada", exact: true })).toContainText("Reprovado");
+  await expect(dialog).toContainText("Executor: QA Planejamento");
   await dialog.getByRole("button", { name: "Fechar", exact: true }).click();
   await api(`environments/${env.id}`, { name: "QA renomeado", archived: true }, "PATCH");
   await api(`releases/${release.id}`, { version: "4.1.0", archived: true }, "PATCH");
@@ -209,6 +247,9 @@ test("cadastro, login, dois projetos, caso, execução, bug e importação JUnit
     .click();
   await expect(dialog.getByLabel(`Resultado de ${caseTitle}`, { exact: true })).toHaveValue("FAILED");
   await dialog.getByLabel(`Resultado de ${caseTitle}`, { exact: true }).selectOption("PASSED");
+  await expect(dialog.getByRole("button", { name: "Encerrar ciclo", exact: true })).toBeDisabled();
+  await dialog.getByRole("button", { name: "Descartar alterações", exact: true }).click();
+  await expect(dialog.getByLabel(`Resultado de ${caseTitle}`, { exact: true })).toHaveValue("FAILED");
   await dialog
     .getByRole("button", { name: "Encerrar ciclo", exact: true })
     .click();
