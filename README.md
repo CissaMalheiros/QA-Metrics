@@ -87,6 +87,16 @@ Use **Gerenciar suítes** para criar e mover pastas/subpastas. A edição do cas
 
 **Duplicar** cria outro código em estado de rascunho. **Revisões** mostra definições anteriores; a edição ou o arquivamento não altera snapshots de execuções. Casos arquivados não podem ser incluídos em novos ciclos. Suítes com conteúdo só podem ser excluídas após mover seus casos e subpastas.
 
+### Cenários BDD / Gherkin
+
+Em **BDD / .feature**, escreva ou envie uma especificação UTF-8 de até 100 KiB. O parser oficial do Cucumber valida português (`# language: pt`) e inglês, incluindo contexto, regras, esquemas, exemplos, tabelas e docstrings. A prévia exibe passos e exemplos; nenhum código ou step definition é executado.
+
+Cada cenário deve ter identidade explícita (`@id:login-principal`, `@qa:UUID` ou `@TC-001`) para conciliação automática. Sem chave, escolha criar um novo caso ou informe o número de um caso do mesmo projeto. A ferramenta adiciona tags estáveis na fonte exportada e preserva a fonte recebida nas revisões. Título e posição no arquivo não são usados como identidade. Reimportar requer confirmar o destino; atualizar um caso mantém seus códigos e resultados anteriores.
+
+O editor mostra a fonte com realce e permite conciliar alterações de identidade. Ao editar um caso, selecione qual cenário do arquivo atualiza aquele caso; os demais casos mantêm suas próprias revisões. **Exportar .feature** baixa a fonte daquela revisão com idioma, contexto, exemplos e tags. Durante um ciclo manual, consulte a fonte registrada no snapshot da execução.
+
+Tags como `@requirement:REQ-LOGIN` e `@automation:login-principal` registram referências opcionais. Especificar um BDD ou informar uma referência de automação não significa que o teste foi automatizado, executado ou aprovado. A rastreabilidade completa de requisitos e a ingestão automatizada serão entregues nas fases correspondentes.
+
 A taxa de aprovação é `aprovados / (aprovados + reprovados) × 100`. O denominador é mostrado na interface. `BLOCKED`, `SKIPPED` e `NOT_RUN` aparecem separadamente e não entram no denominador. Quando não há aprovados ou reprovados, a taxa é indefinida, apresentada como ausência de resultados.
 
 O dashboard informa o escopo dos ciclos exibidos e permite selecionar um ciclo. A visão global agrega somente projetos acessíveis à conta; a visão de projeto usa somente seus próprios ciclos e bugs. Os totais de múltiplos ciclos representam resultados de execuções, portanto o mesmo caso pode ser contado em ciclos diferentes.

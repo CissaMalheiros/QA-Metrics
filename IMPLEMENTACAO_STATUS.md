@@ -10,7 +10,7 @@ Estado inicial: `3c9b3b4`, árvore limpa. Reutilizar Node 24 e pnpm em `.tools/n
 | Fase | Estado | Escopo/pendência |
 | --- | --- | --- |
 | 8 | Concluída e validada | Auditoria do MVP, retenção de histórico, AuditLog transacional, migração aditiva e teste com registros antigos |
-| 9 | Em andamento — 9.1 implementada | Organização/revisões validadas; BDD/feature e CSV ainda pendentes, não avançar à fase 10 |
+| 9 | Em andamento — 9.1 implementada | Organização, revisões e BDD/feature validados; CSV pendente, não avançar à fase 10 |
 | 10 | Não iniciada | Planos reutilizáveis, versões, builds e ambientes |
 | 11 | Não iniciada | Execução guiada, rascunhos, autoria, duração e fluxo contextual de defeito |
 | 12 | Não iniciada | Defeitos, retestes e evidências privadas |
@@ -61,9 +61,17 @@ Estado inicial: `3c9b3b4`, árvore limpa. Reutilizar Node 24 e pnpm em `.tools/n
 - Migração `202610290003_case_library` aplicada sobre a base isolada já populada. Teste também migra um fixture do MVP e verifica código/revisão e resultado antigo intactos.
 - 59 testes unitários e 24 de integração passaram; E2E de suíte, tags, revisão e jornada original passou (2 testes). O E2E encontrou uma corrida de navegação ao trocar projeto e aba rapidamente; corrigida no handler compartilhado e validada sem relaxar o teste de isolamento.
 - Lint, TypeScript e build passaram. Commit local da entrega 9.1: feat: organizar biblioteca e preservar revisões de casos (hash no próximo registro).
-- 9.2 pendente: formato BDD, parser oficial PT/EN, editor com realce/preview, import/export `.feature`, identidade/reconciliação e referências opcionais.
+- Commit local 9.1: `e96063b` — feat: organizar biblioteca e preservar revisões de casos.
+- 9.2 implementada e validada: formato BDD, parser oficial `@cucumber/gherkin` 42.0.1 + `@cucumber/messages` 34.2.1 (dependência compatível >=34 <35), PT/EN, contexto/regras/outlines/exemplos/tabelas/docstrings, realce e prévia sem executar código.
+- `.feature`: upload UTF-8 de até 100 KiB/200 cenários; prévia e conciliação explícita por chave ou código do projeto. Sem identidade, o usuário escolhe criar/conciliar e a exportação recebe `@qa:UUID`; fonte original e fonte com IDs ficam versionadas. Não usar título/linha como identidade.
+- Fontes importadas podem conter vários cenários; editar um caso atualiza somente o cenário selecionado, mantendo o arquivo da revisão. Cada caso retém sua fonte completa (limite conhecido de armazenamento; deduplicar documentos apenas se medição justificar).
+- Tags `@requirement:CHAVE` e `@automation:CHAVE` guardam referências externas opcionais. Não representam cobertura, execução ou associação já validada pelo runner. A matriz de requisitos e vínculos reais continua na fase 13, ingestão/automação na fase 14.
+- Exportação, revisão e leitura de fonte BDD durante execução manual implementadas. Duplicação cria chave distinta; PATCH tradicional não pode deixar fonte e passos BDD inconsistentes.
+- Classificação omitida em reimportações é preservada, incluindo estado arquivado, prioridade e tags adicionais.
+- Teste direcionado BDD no navegador passou, incluindo arquivo, erro de sintaxe, prévia, persistência, exportação, execução manual e edição sem trocar código. Lint/types/71 unitários passaram. Integração completa (28 testes), E2E completo (3 testes) e build passaram. Capturas desktop/móvel inspecionadas; aguardou-se o fechamento do sidebar antes da captura móvel para não registrar uma transição.
+- Migração `202610290004_gherkin` aplicada somente na base isolada; antigo formato STEPS e snapshots preservados. Dependências fixadas em versões exatas.
 - 9.3 pendente: CSV com prévia, mapeamento de colunas, validação por linha e exportação segura.
 
 ## Próxima ação
 
-Continuar 9.2 e 9.3, validando todos os aceites da fase 9 antes de avançar à fase 10. Documentação oficial Gherkin consultada em https://cucumber.io/docs/gherkin/reference/ e /languages/; nenhuma dependência nova instalada ainda.
+Commit local 9.2: feat: validar e gerenciar especificações BDD em Gherkin (hash no próximo registro). Implementar CSV (9.3) antes de marcar a fase 9 concluída. Não avançar à fase 10 antes dos aceites. Documentação oficial consultada: https://cucumber.io/docs/gherkin/reference/, https://cucumber.io/docs/gherkin/languages/ e fontes/types oficiais dos pacotes instalados. O formulário Field existente foi compartilhado para garantir rótulos explícitos também em selects e textarea (falha de localização encontrada no E2E).

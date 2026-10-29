@@ -1,8 +1,6 @@
 "use client";
 
 import {
-  cloneElement,
-  isValidElement,
   useCallback,
   useEffect,
   useId,
@@ -46,8 +44,11 @@ import { authClient } from "@/lib/auth-client";
 import { calculateMetrics } from "@/domain/metrics";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
+import { Field } from "@/components/ui/field";
 import { request } from "@/lib/api-client";
-import { CaseLibrary, caseCode, caseStateLabels, caseTypeLabels, suitePath, type LibraryCase as Case, type Suite } from "@/components/case-library";
+import { CaseLibrary } from "@/components/case-library";
+import { caseCode, caseStateLabels, caseTypeLabels, suitePath, type LibraryCase as Case, type Suite } from "@/domain/cases";
+import { GherkinSource } from "@/components/feature-editor";
 
 type Project = {
   id: string;
@@ -68,6 +69,8 @@ type Result = {
     steps?: string[];
     expectedResult?: string;
     preconditions?: string;
+    format?: string;
+    gherkinSource?: string;
   };
   status: string;
   durationMs: number | null;
@@ -131,6 +134,7 @@ const labels: Record<string, string> = {
   COMPLETED: "Encerrado",
   MANUAL: "Manual",
   JUNIT: "JUnit",
+  GHERKIN: "Gherkin",
   JUNIT_IMPORT: "JUnit XML",
 };
 const resultStates = ["PASSED", "FAILED", "BLOCKED", "SKIPPED", "NOT_RUN"];
@@ -161,29 +165,6 @@ function Badge({
       {value && <span className="badge-dot" />}
       {children ?? labels[value ?? ""] ?? value}
     </span>
-  );
-}
-function Field({
-  label,
-  children,
-  hint,
-}: {
-  label: string;
-  children: React.ReactNode;
-  hint?: string;
-}) {
-  const id = useId();
-  return (
-    <div className="field">
-      <label htmlFor={id}>{label}</label>
-      {isValidElement<{ id?: string; "aria-describedby"?: string }>(children)
-        ? cloneElement(children, {
-            id,
-            "aria-describedby": hint ? `${id}-hint` : undefined,
-          })
-        : children}
-      {hint && <small id={`${id}-hint`}>{hint}</small>}
-    </div>
   );
 }
 function Select({
@@ -816,7 +797,7 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
                         }
                         detail={
                           projectId
-                            ? `${quantity(cases.filter((c) => c.origin === "MANUAL").length, "manual", "manuais")} · ${quantity(cases.filter((c) => c.origin === "JUNIT").length, "importado", "importados")}`
+                            ? `${quantity(cases.filter((c) => c.origin === "MANUAL").length, "manual", "manuais")} · ${quantity(cases.filter((c) => c.origin !== "MANUAL").length, "importado", "importados")}`
                             : `${quantity(projects.length, "projeto", "projetos")} no seu workspace`
                         }
                         icon={projectId ? ClipboardList : FolderKanban}
@@ -1392,6 +1373,7 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
         description="Detalhes do caso de teste."
         wide
       >
+        {caseDetail?.format === "BDD" && <GherkinSource source={caseDetail.gherkinSource} />}
         {caseDetail && (
           <div className="case-detail">
             <div className="detail-badges">
@@ -1971,6 +1953,7 @@ function ResultEditor({
         <h3>{result.caseTitle}</h3>
         <Badge value={result.status} />
       </div>
+      {result.caseSnapshot.gherkinSource && <details><summary>Fonte Gherkin da execução</summary><GherkinSource source={result.caseSnapshot.gherkinSource} /></details>}
       {result.caseSnapshot && (
         <details>
           <summary>Ver passos e resultado esperado</summary>

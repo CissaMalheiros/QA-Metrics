@@ -3,6 +3,7 @@ import { errorResponse, ServiceError } from "@/server/errors";
 import { assertSameOrigin, readJson, readJUnitUpload } from "@/server/http";
 import * as service from "@/server/services";
 import * as library from "@/server/case-library";
+import * as gherkin from "@/server/gherkin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -50,7 +51,17 @@ async function handle(
       else if (method === "DELETE")
         result = await service.deleteProject(userId, projectId);
     } else if (collection === "projects" && projectId) {
-      if (resource === "library" && path.length === 3 && method === "GET") {
+      if (resource === "features" && resourceId === "preview" && path.length === 4 && method === "POST") {
+        result = await gherkin.previewFeature(userId, projectId, await readJson(request));
+      } else if (resource === "features" && path.length === 3 && method === "POST") {
+        result = await gherkin.saveFeature(userId, projectId, await readJson(request));
+      } else if (resource === "features" && resourceId && action === "export" && path.length === 5 && method === "GET") {
+        const feature = await gherkin.exportFeature(userId, projectId, resourceId);
+        return new Response(feature.source, { headers: {
+          "Content-Type": "text/plain; charset=utf-8", "Content-Disposition": `attachment; filename="${feature.name}"`,
+          "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff",
+        } });
+      } else if (resource === "library" && path.length === 3 && method === "GET") {
         result = await library.getCaseLibrary(userId, projectId, Object.fromEntries(new URL(request.url).searchParams));
       } else if (resource === "suites" && path.length === 3 && method === "POST") {
         result = { suite: await library.saveSuite(userId, projectId, await readJson(request)) };

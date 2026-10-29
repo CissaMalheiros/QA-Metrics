@@ -5,18 +5,25 @@
 .library-heading h2 { margin: 0; font-size: 20px; }
 .library-heading p { margin: 6px 0 0; }
 .library-actions, .library-search, .library-filter-details { padding: 12px 20px; }
-.library-search label:first-child { flex: 1; min-width: 180px; }
+.library-search > .field:first-child { flex: 1; min-width: 180px; }
 .library-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 12px; padding-top: 12px; }
 .case-library label, .library-field { display: flex; flex-direction: column; gap: 6px; margin-block: 8px; }
 .case-library input:not([type=checkbox]), .case-library select, .library-field input, .library-field select { min-height: 40px; }
 .case-library input:not([type=checkbox]), .case-library select, .library-field input, .library-field select { border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; background: var(--panel); max-width: 100%; }
-.case-library small { display: block; color: var(--muted); margin-top: 5px; overflow-wrap: anywhere; }
+.case-library small { display: block; color: var(--ink); font-size: 12px; margin-top: 5px; overflow-wrap: anywhere; }
 .library-row-actions { display: flex; flex-wrap: wrap; gap: 10px; }
 .library-row-actions button { min-height: 36px; text-decoration: underline; text-underline-offset: 3px; }
 .case-library td { vertical-align: top; overflow-wrap: anywhere; }
 .case-library input[type=checkbox] { width: 18px; height: 18px; }
 .case-library details > summary { cursor: pointer; min-height: 32px; }
-@media (max-width: 640px) { .library-heading, .library-search { align-items: stretch; } .library-search > label { flex-basis: 100%; } .library-row-actions button { min-height: 44px; } }
+.feature-fields { border: 0; padding: 0; margin: 0; min-width: 0; }
+.feature-input, .gherkin-source, .gherkin-step { font-family: Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.65; }
+.gherkin-source { background: var(--bg); color: var(--ink); padding: 16px; border-radius: 6px; max-height: 420px; overflow: auto; }
+.gherkin-keyword { color: #235d50; font-weight: 600; }
+.gherkin-tag { color: #825215; }
+.feature-preview { margin-top: 20px; }
+.feature-preview details { padding-block: 12px; border-top: 1px solid var(--line); }
+@media (max-width: 640px) { .library-heading, .library-search { align-items: stretch; } .library-search > .field { flex-basis: 100%; } .library-row-actions button { min-height: 44px; } }
 
 :root {
   --bg: #f7f8fa;

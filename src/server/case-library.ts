@@ -3,6 +3,8 @@ import { db } from "@/lib/db";
 import { CASE_ORIGINS, CASE_STATES, CASE_TYPES, PRIORITIES, testCaseUpdateSchema } from "@/domain/schemas";
 import { requireProject, validateSuiteId, withProject } from "@/server/services";
 import { ServiceError } from "@/server/errors";
+import { randomUUID } from "node:crypto";
+import { replaceFeatureKey } from "@/importers/gherkin";
 
 const id = z.string().trim().min(1).max(128);
 const suiteSchema = z.object({
@@ -15,6 +17,7 @@ const querySchema = z.object({
   priority: z.union([z.enum(PRIORITIES), z.literal("")]).default(""),
   origin: z.union([z.enum(CASE_ORIGINS), z.literal("")]).default(""),
   type: z.union([z.enum(CASE_TYPES), z.literal("")]).default(""),
+  format: z.union([z.enum(["STEPS", "BDD"]), z.literal("")]).default(""),
   state: z.union([z.enum(CASE_STATES), z.literal("ALL")]).default("READY"),
   tag: z.string().trim().max(50).default(""),
   page: z.coerce.number().int().min(1).max(100000).default(1),
@@ -30,6 +33,7 @@ export async function getCaseLibrary(userId: string, projectId: string, input: u
     ...(query.priority ? { priority: query.priority } : {}),
     ...(query.origin ? { origin: query.origin } : {}),
     ...(query.type ? { type: query.type } : {}),
+    ...(query.format ? { format: query.format } : {}),
     ...(query.state !== "ALL" ? { state: query.state } : {}),
     ...(query.tag ? { tags: { has: query.tag.replace(/^@/, "").toLowerCase() } } : {}),
     ...(query.q ? { OR: [
@@ -93,11 +97,19 @@ export async function duplicateCase(userId: string, projectId: string, caseId: s
   return withProject(userId, projectId, "CASE_DUPLICATED", async client => {
     const source = await client.testCase.findFirst({ where: { id: caseId, projectId } });
     if (!source) throw new ServiceError(404, "Caso de teste não encontrado.");
+    const key = `qa:${randomUUID()}`;
     return client.testCase.create({ data: {
       projectId, title: `${source.title.slice(0, 190)} (cópia)`, description: source.description,
       preconditions: source.preconditions, steps: source.steps ?? [], expectedResult: source.expectedResult,
       priority: source.priority, origin: source.origin, suiteId: source.suiteId, tags: source.tags,
       type: source.type, state: "DRAFT", updatedBy: userId,
+      ...(source.format === "BDD" && source.gherkinKey ? {
+        format: "BDD", gherkinKey: key, gherkinLanguage: source.gherkinLanguage,
+        gherkinSource: replaceFeatureKey(source.gherkinSource, source.gherkinKey, key),
+        gherkinOriginalSource: source.gherkinOriginalSource, requirementRef: source.requirementRef,
+        automationRef: source.automationRef,
+        tags: source.tags.map(tag => tag === source.gherkinKey!.toLowerCase() ? key : tag),
+      } : {}),
     } });
   });
 }

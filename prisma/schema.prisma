@@ -19,6 +19,7 @@ enum Priority {
 enum CaseOrigin {
   MANUAL
   JUNIT
+  GHERKIN
 }
 enum RunSource {
   MANUAL
@@ -145,6 +146,14 @@ model TestCase {
   revision Int @default(1)
   updatedBy String?
   searchText String @default("")
+  format String @default("STEPS")
+  gherkinSource String @default("")
+  gherkinOriginalSource String @default("")
+  gherkinKey String?
+  gherkinLanguage String @default("pt")
+  requirementRef String @default("")
+  automationRef String @default("")
+  @@unique([projectId, gherkinKey])
   title String
   description String @default("")
   preconditions String @default("")

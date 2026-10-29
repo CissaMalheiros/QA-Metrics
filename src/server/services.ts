@@ -102,6 +102,12 @@ function snapshot(testCase: TestCase): Prisma.InputJsonObject {
     tags: testCase.tags,
     type: testCase.type,
     state: testCase.state,
+    format: testCase.format,
+    gherkinSource: testCase.gherkinSource,
+    gherkinKey: testCase.gherkinKey,
+    gherkinLanguage: testCase.gherkinLanguage,
+    requirementRef: testCase.requirementRef,
+    automationRef: testCase.automationRef,
     title: testCase.title,
     description: testCase.description,
     preconditions: testCase.preconditions,
@@ -274,6 +280,8 @@ export async function updateCase(
       where: { id: caseId, projectId },
     });
     if (!testCase) throw new ServiceError(404, "Caso de teste não encontrado.");
+    if (testCase.format === "BDD" && ["title", "description", "preconditions", "steps", "expectedResult"].some(field => field in data))
+      throw new ServiceError(409, "Edite a fonte Gherkin para alterar a definição deste caso BDD.");
     await validateSuiteId(client, projectId, data.suiteId);
     return client.testCase.update({ where: { id: caseId }, data: { ...data, updatedBy: userId } });
   });
