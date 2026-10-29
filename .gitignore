@@ -1,0 +1,15 @@
+node_modules/
+.next/
+.tools/
+.env
+.env.*
+!.env.example
+src/generated/
+coverage/
+playwright-report/
+test-results/
+*.tsbuildinfo
+*.log
+.local/
+.agents/
+skills-lock.json

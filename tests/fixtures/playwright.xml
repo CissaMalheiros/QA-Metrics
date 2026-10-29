@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites id="" name="" tests="4" failures="2" skipped="1" errors="0" time="3.43">
+  <testsuite name="checkout.spec.ts" timestamp="2026-10-29T12:00:00" hostname="chromium" tests="4" failures="2" skipped="1" time="3.43" errors="0">
+    <testcase name="cliente finaliza compra" classname="checkout.spec.ts" time="1.23"/>
+    <testcase name="recusa cartão inválido" classname="checkout.spec.ts" time="2.0">
+      <failure message="checkout.spec.ts:18:3 recusa cartão inválido" type="FAILURE"><![CDATA[Error: expect(locator).toBeVisible()
+Expected: visible
+Received: hidden]]></failure>
+      <system-out><![CDATA[log ignorado pelo importador]]></system-out>
+    </testcase>
+    <testcase name="aplica cupom" classname="checkout.spec.ts" time="0"><skipped message="recurso ainda indisponível"/></testcase>
+    <testcase name="conecta ao gateway" classname="checkout.spec.ts" time="0.2"><error message="Connection refused" type="InfrastructureError">ECONNREFUSED 127.0.0.1:9000</error></testcase>
+  </testsuite>
+</testsuites>

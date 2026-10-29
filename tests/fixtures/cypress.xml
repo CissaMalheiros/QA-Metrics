@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="Mocha Tests" time="0.65" tests="3" failures="1">
+  <testsuite name="Root Suite" timestamp="2026-10-29T12:05:00" tests="0" failures="0" time="0"/>
+  <testsuite name="Área do cliente" timestamp="2026-10-29T12:05:00" tests="3" failures="1" time="0.65">
+    <testcase name="Área do cliente autentica com credenciais válidas" classname="autentica com credenciais válidas" time="0.35"/>
+    <testcase name="Área do cliente valida email &amp; senha" classname="valida email &amp; senha" time="0.3"><failure message="expected 401 to equal 200" type="AssertionError"><![CDATA[AssertionError: expected 401 to equal 200
+at Context.eval (webpack://qa/cypress/e2e/login.cy.ts:16:12)]]></failure></testcase>
+    <testcase name="Área do cliente recupera acesso" classname="recupera acesso" time="0"><skipped/></testcase>
+  </testsuite>
+</testsuites>

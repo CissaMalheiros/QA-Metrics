@@ -1,0 +1,3 @@
+<?xml version="1.0"?>
+<!DOCTYPE testsuite [<!ENTITY secret SYSTEM "file:///C:/Windows/win.ini">]>
+<testsuite name="XXE"><testcase name="não deve ler arquivo"><failure>&secret;</failure></testcase></testsuite>
