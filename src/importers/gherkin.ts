@@ -100,3 +100,7 @@ export function replaceFeatureKey(source: string, previous: string, next: string
     ? line.split(/(\s+)/).map(token => token === `@${previous}` ? `@${next}` : token).join("")
     : line).join("\n");
 }
+
+export function originalFeatureSource(source: string, previous?: { gherkinSource: string; gherkinOriginalSource: string }) {
+  return previous && source === previous.gherkinSource ? previous.gherkinOriginalSource : source;
+}

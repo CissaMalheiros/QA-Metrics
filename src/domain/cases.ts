@@ -21,4 +21,3 @@ export function suitePath(suite: Suite, suites: Suite[]): string {
   }
   return names.join(" / ");
 }
-

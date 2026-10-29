@@ -4,6 +4,7 @@ import { assertSameOrigin, readJson, readJUnitUpload } from "@/server/http";
 import * as service from "@/server/services";
 import * as library from "@/server/case-library";
 import * as gherkin from "@/server/gherkin";
+import * as csv from "@/server/csv";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -51,7 +52,17 @@ async function handle(
       else if (method === "DELETE")
         result = await service.deleteProject(userId, projectId);
     } else if (collection === "projects" && projectId) {
-      if (resource === "features" && resourceId === "preview" && path.length === 4 && method === "POST") {
+      if (resource === "csv" && resourceId && path.length === 4 && method === "POST") {
+        if (resourceId === "inspect") result = await csv.inspectCSV(userId, projectId, await readJson(request));
+        else if (resourceId === "preview") result = await csv.previewCSV(userId, projectId, await readJson(request));
+        else if (resourceId === "import") result = await csv.importCSV(userId, projectId, await readJson(request));
+      } else if (resource === "csv" && resourceId === "export" && path.length === 4 && method === "GET") {
+        const output = await csv.exportCSV(userId, projectId, Object.fromEntries(new URL(request.url).searchParams));
+        return new Response(output, { headers: {
+          "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": 'attachment; filename="qa-metrics-casos.csv"',
+          "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff",
+        } });
+      } else if (resource === "features" && resourceId === "preview" && path.length === 4 && method === "POST") {
         result = await gherkin.previewFeature(userId, projectId, await readJson(request));
       } else if (resource === "features" && path.length === 3 && method === "POST") {
         result = await gherkin.saveFeature(userId, projectId, await readJson(request));

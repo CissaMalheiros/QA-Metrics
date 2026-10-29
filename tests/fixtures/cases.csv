@@ -1,0 +1,5 @@
+Identificador;Nome;Etapas;Esperado;Prioridade;Pasta;Tags
+checkout-001;Validar compra;"Abrir carrinho
+Confirmar pedido";Pedido confirmado;Alta;Checkout/Pagamento;"smoke,regressao"
+checkout-002;Validar cupom;"Informar cupom
+Confirmar desconto";Desconto calculado;Média;Checkout/Cupons;regressao

@@ -23,7 +23,7 @@ const querySchema = z.object({
   page: z.coerce.number().int().min(1).max(100000).default(1),
 });
 
-export async function getCaseLibrary(userId: string, projectId: string, input: unknown) {
+export async function getCaseLibrary(userId: string, projectId: string, input: unknown, pageSize: 50 | 1000 = 50) {
   await requireProject(userId, projectId);
   const query = querySchema.parse(input);
   const code = /^TC-(\d+)$/i.exec(query.q)?.[1];
@@ -42,11 +42,11 @@ export async function getCaseLibrary(userId: string, projectId: string, input: u
     ] } : {}),
   };
   const [cases, total, suites] = await Promise.all([
-    db.testCase.findMany({ where, orderBy: { number: "asc" }, skip: (query.page - 1) * 50, take: 50 }),
+    db.testCase.findMany({ where, orderBy: { number: "asc" }, skip: (query.page - 1) * pageSize, take: pageSize }),
     db.testCase.count({ where }),
     db.testSuite.findMany({ where: { projectId }, orderBy: { name: "asc" } }),
   ]);
-  return { cases, total, page: query.page, pageSize: 50, suites };
+  return { cases, total, page: query.page, pageSize, suites };
 }
 
 export async function saveSuite(userId: string, projectId: string, input: unknown, suiteId?: string) {
@@ -56,8 +56,9 @@ export async function saveSuite(userId: string, projectId: string, input: unknow
       throw new ServiceError(404, "Suíte não encontrada.");
     const seen = new Set(suiteId ? [suiteId] : []);
     let parentId = data.parentId;
+    let depth = 1;
     while (parentId) {
-      if (seen.has(parentId) || seen.size >= 20) throw new ServiceError(400, "A hierarquia não pode conter ciclos ou mais de 20 níveis.");
+      if (seen.has(parentId) || ++depth > 20) throw new ServiceError(400, "A hierarquia não pode conter ciclos ou mais de 20 níveis.");
       seen.add(parentId);
       const parent = await client.testSuite.findFirst({ where: { id: parentId, projectId } });
       if (!parent) throw new ServiceError(400, "A pasta superior deve pertencer ao mesmo projeto.");
@@ -103,11 +104,11 @@ export async function duplicateCase(userId: string, projectId: string, caseId: s
       preconditions: source.preconditions, steps: source.steps ?? [], expectedResult: source.expectedResult,
       priority: source.priority, origin: source.origin, suiteId: source.suiteId, tags: source.tags,
       type: source.type, state: "DRAFT", updatedBy: userId,
+      requirementRef: source.requirementRef, automationRef: source.automationRef,
       ...(source.format === "BDD" && source.gherkinKey ? {
         format: "BDD", gherkinKey: key, gherkinLanguage: source.gherkinLanguage,
         gherkinSource: replaceFeatureKey(source.gherkinSource, source.gherkinKey, key),
-        gherkinOriginalSource: source.gherkinOriginalSource, requirementRef: source.requirementRef,
-        automationRef: source.automationRef,
+        gherkinOriginalSource: source.gherkinOriginalSource,
         tags: source.tags.map(tag => tag === source.gherkinKey!.toLowerCase() ? key : tag),
       } : {}),
     } });

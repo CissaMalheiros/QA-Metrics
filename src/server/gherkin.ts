@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { CASE_STATES, CASE_TYPES, PRIORITIES } from "@/domain/schemas";
-import { featureWithKeys, GherkinImportError, parseFeature } from "@/importers/gherkin";
+import { featureWithKeys, GherkinImportError, originalFeatureSource, parseFeature } from "@/importers/gherkin";
 import { requireProject, validateSuiteId, withProject } from "@/server/services";
 import { ServiceError } from "@/server/errors";
 import { caseCode } from "@/domain/cases";
@@ -74,7 +74,7 @@ export async function saveFeature(userId: string, projectId: string, input: unkn
         description: scenario.description, preconditions: scenario.background.join("\n"),
         steps: scenario.steps, expectedResult: scenario.expectedResult,
         // shortcut: cases retain the full source file; deduplicate documents if measured storage growth requires it.
-        format: "BDD", gherkinSource: canonical, gherkinOriginalSource: data.source,
+        format: "BDD", gherkinSource: canonical, gherkinOriginalSource: originalFeatureSource(data.source, target),
         gherkinKey: keys[assignment.index], gherkinLanguage: parsed.language,
         tags,
         requirementRef: scenario.requirementRef, automationRef: scenario.automationRef, updatedBy: userId,

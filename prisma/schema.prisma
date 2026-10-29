@@ -20,6 +20,7 @@ enum CaseOrigin {
   MANUAL
   JUNIT
   GHERKIN
+  CSV
 }
 enum RunSource {
   MANUAL

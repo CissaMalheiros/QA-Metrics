@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, expect, it } from "vitest";
 import { db } from "@/lib/db";
-import { createCase, createProject, createRun, getRun, updateCase } from "@/server/services";
+import { createCase, createProject, createRun, deleteCase, getRun, updateCase } from "@/server/services";
 import { bulkUpdateCases, duplicateCase, getCaseLibrary, listCaseRevisions, saveSuite } from "@/server/case-library";
 
 const user = `library-${randomUUID()}`;
@@ -50,6 +50,16 @@ it("mantém revisões e snapshots antigos ao editar ou arquivar uma definição"
   expect(duplicate.id).not.toBe(testCase.id);
   expect(duplicate.number).not.toBe(testCase.number);
   expect(duplicate.state).toBe("DRAFT");
+});
+
+it("preserva definição revisada mesmo sem execução e só exclui o rascunho inicial sem histórico", async () => {
+  const revised = await createCase(user, projectId, input);
+  await updateCase(user, projectId, revised.id, { title: "Definição revisada sem ciclo" });
+  await expect(deleteCase(user, projectId, revised.id)).rejects.toMatchObject({ status: 409 });
+  expect(await db.testCaseRevision.count({ where: { testCaseId: revised.id } })).toBe(2);
+  const unused = await createCase(user, projectId, input);
+  await deleteCase(user, projectId, unused.id);
+  expect(await db.testCase.findUnique({ where: { id: unused.id } })).toBeNull();
 });
 
 it("impede ciclos de pastas e referências cruzadas tanto no serviço quanto no PostgreSQL", async () => {

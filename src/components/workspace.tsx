@@ -135,6 +135,7 @@ const labels: Record<string, string> = {
   MANUAL: "Manual",
   JUNIT: "JUnit",
   GHERKIN: "Gherkin",
+  CSV: "CSV",
   JUNIT_IMPORT: "JUnit XML",
 };
 const resultStates = ["PASSED", "FAILED", "BLOCKED", "SKIPPED", "NOT_RUN"];
@@ -364,20 +365,17 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
     setFormError("");
     setEditor({ kind, value });
   }
+  async function refreshAfterSave() {
+    try { await refresh(); setError(""); }
+    catch { setError("A alteração foi salva, mas não foi possível atualizar a tela. Tente carregar os dados novamente."); }
+  }
   async function mutate(action: () => Promise<unknown>, message: string) {
     setBusy(true);
     setFormError("");
     try {
       await action();
       setNotice(message);
-      try {
-        await refresh();
-        setError("");
-      } catch {
-        setError(
-          "A alteração foi salva, mas não foi possível atualizar a tela. Tente carregar os dados novamente.",
-        );
-      }
+      await refreshAfterSave();
       return true;
     } catch (e) {
       setFormError((e as Error).message);
@@ -458,6 +456,7 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
   const runs = projectId ? (detail?.runs ?? []) : (overview?.runs ?? []);
   const bugs = projectId ? (detail?.bugs ?? []) : (overview?.bugs ?? []);
   const cases = detail?.cases ?? [];
+  const availableCases = cases.filter(value => value.state !== "ARCHIVED");
   const selectedRuns =
     runFilter === "all"
       ? runs
@@ -1056,7 +1055,7 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
                 {tab === "cases" && projectId && (
                   <CaseLibrary key={projectId} projectId={projectId} version={cases}
                     onCreate={() => openEditor("case")} onEdit={value => openEditor("case", value)}
-                    onDetail={setCaseDetail} onChanged={refresh}
+                    onDetail={setCaseDetail} onChanged={refreshAfterSave}
                     onDelete={value => { setFormError(""); setDeletion({ kind: "case", id: value.id, title: value.title }); }}
                   />
                 )}
@@ -1281,8 +1280,8 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
               </Field>
               <fieldset className="case-checklist">
                 <legend>Selecione os casos de teste</legend>
-                {cases.length ? (
-                  cases.filter(c => c.state !== "ARCHIVED").map((c) => (
+                {availableCases.length ? (
+                  availableCases.map((c) => (
                     <label key={c.id}>
                       <input type="checkbox" name="testCaseIds" value={c.id} />
                       <span>{c.title}</span>
@@ -1313,7 +1312,7 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
               Cancelar
             </Button>
             <Button
-              disabled={busy || (editor?.kind === "run" && !cases.length)}
+              disabled={busy || (editor?.kind === "run" && !availableCases.length)}
               type="submit"
             >
               {busy
@@ -1343,7 +1342,7 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
           {deletion?.kind === "project"
             ? "Somente projetos sem registros podem ser excluídos. Para preservar casos, ciclos, resultados e bugs, edite o projeto e escolha Arquivado."
             : deletion?.kind === "case"
-              ? "A exclusão é permanente. Casos que já possuem resultados são preservados para manter o histórico."
+              ? "A exclusão é permanente. Casos com revisões ou resultados são preservados; use o arquivamento."
               : "Bugs vinculados a execuções são preservados e devem ser fechados. Bugs sem vínculo podem ser excluídos permanentemente."}
         </p>
         {formError && (
@@ -1425,7 +1424,7 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
           <div className="run-detail">
             <div className="run-detail-header">
               <Badge value={activeRun.status} />
-              <span>{activeRun.results.length} casos de teste</span>
+              <span>{quantity(activeRun.results.length, "caso de teste", "casos de teste")}</span>
               {activeRun.status === "COMPLETED" && (
                 <span>
                   <ShieldCheck size={15} />

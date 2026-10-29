@@ -297,10 +297,10 @@ export async function deleteCase(
       where: { id: caseId, projectId },
     });
     if (!testCase) throw new ServiceError(404, "Caso de teste não encontrado.");
-    if (await client.testResult.count({ where: { testCaseId: caseId } })) {
+    if (testCase.revision > 1 || await client.testResult.count({ where: { testCaseId: caseId } })) {
       throw new ServiceError(
         409,
-        "Este caso já possui execuções. Ele precisa ser mantido para preservar o histórico.",
+        "Este caso possui revisões ou execuções. Arquive-o para preservar o histórico.",
       );
     }
     await client.testCase.delete({ where: { id: caseId } });
@@ -340,7 +340,7 @@ export async function createRun(
     if (cases.length !== data.testCaseIds.length)
       throw new ServiceError(
         400,
-        "Todos os casos devem pertencer ao projeto deste ciclo.",
+        "Todos os casos devem pertencer a este projeto e não estar arquivados.",
       );
     const run = await client.testRun.create({
       data: { projectId, name: data.name, source: "MANUAL", status: "OPEN" },

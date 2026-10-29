@@ -97,6 +97,14 @@ O editor mostra a fonte com realce e permite conciliar alterações de identidad
 
 Tags como `@requirement:REQ-LOGIN` e `@automation:login-principal` registram referências opcionais. Especificar um BDD ou informar uma referência de automação não significa que o teste foi automatizado, executado ou aprovado. A rastreabilidade completa de requisitos e a ingestão automatizada serão entregues nas fases correspondentes.
 
+### Importação e exportação CSV
+
+**Importar CSV** aceita UTF-8 com vírgula ou ponto e vírgula, aspas escapadas e campos multilinha, até 256 KiB/1.000 registros. Mapeie as colunas e gere a prévia: ela informa ações, avisos e erros pela linha física do arquivo. Um erro impede a gravação do lote inteiro, inclusive a criação de pastas. Suítes são caminhos como `Checkout/Pagamento`; até 200 novas suítes podem ser criadas por lote.
+
+No modo **Criar novos**, códigos recebidos não sobrescrevem casos existentes. No modo **Atualizar por código/ID**, códigos pertencem ao projeto selecionado e identificações externas conciliam reimportações; títulos não são identidade. Informações não mapeadas são preservadas na atualização. Definições JUnit sem passos manuais são importadas como rascunhos quando novas e não geram resultados. Casos BDD podem transportar `format=BDD`, `gherkinSource` e `gherkinKey`; a fonte é validada novamente, mantendo contexto, idioma e revisões.
+
+**Exportar CSV dos filtros** exporta até 1.000 casos/5 MiB do recorte atual, incluindo definições BDD. Conteúdos que poderiam virar fórmulas de planilha são escapados como texto. A coluna `qaMetricsEncoding` permite reimportar esse formato sem perder apóstrofos ou fontes iniciadas por tags; preserve essa coluna ao editar uma exportação. Para reimportar arquivos grandes, divida-os em lotes dentro do limite de 256 KiB.
+
 A taxa de aprovação é `aprovados / (aprovados + reprovados) × 100`. O denominador é mostrado na interface. `BLOCKED`, `SKIPPED` e `NOT_RUN` aparecem separadamente e não entram no denominador. Quando não há aprovados ou reprovados, a taxa é indefinida, apresentada como ausência de resultados.
 
 O dashboard informa o escopo dos ciclos exibidos e permite selecionar um ciclo. A visão global agrega somente projetos acessíveis à conta; a visão de projeto usa somente seus próprios ciclos e bugs. Os totais de múltiplos ciclos representam resultados de execuções, portanto o mesmo caso pode ser contado em ciclos diferentes.

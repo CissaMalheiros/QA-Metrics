@@ -32,6 +32,8 @@ it("aplica a migração de auditoria sobre o MVP sem alterar registros históric
     await client.query(readFileSync("prisma/migrations/202610290004_gherkin/migration.sql", "utf8"));
     expect((await client.query('SELECT row_to_json(r) AS value FROM "TestResult" r')).rows).toEqual(before);
     expect((await client.query('SELECT format FROM "TestCase" WHERE id = $1', ['c'])).rows[0].format).toBe("STEPS");
+    await client.query(readFileSync("prisma/migrations/202610290005_csv_origin/migration.sql", "utf8"));
+    expect((await client.query('SELECT row_to_json(r) AS value FROM "TestResult" r')).rows).toEqual(before);
   } finally {
     await client.query("ROLLBACK");
     await client.end();

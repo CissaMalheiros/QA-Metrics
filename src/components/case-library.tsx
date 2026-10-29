@@ -5,6 +5,7 @@ import { request } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Field } from "@/components/ui/field";
+import { CSVDialog } from "@/components/csv-dialog";
 import { FeatureEditor, GherkinSource } from "@/components/feature-editor";
 import { priorityLabels } from "@/domain/labels";
 
@@ -33,6 +34,7 @@ export function CaseLibrary({ projectId, version, onCreate, onEdit, onDetail, on
   const [history, setHistory] = useState<{ title: string; revisions: Revision[] } | null>(null);
   const [reload, setReload] = useState(0);
   const [feature, setFeature] = useState<{ testCase?: LibraryCase } | null>(null);
+  const [csv, setCSV] = useState(false);
   useEffect(() => {
     let alive = true;
     const timer = setTimeout(() => {
@@ -49,11 +51,23 @@ export function CaseLibrary({ projectId, version, onCreate, onEdit, onDetail, on
     catch (reason) { setError(reason instanceof Error ? reason.message : "Não foi possível concluir. Tente novamente."); return false; }
     finally { setBusy(false); }
   }
+  async function downloadCSV() {
+    setBusy(true); setError("");
+    try {
+      const response = await fetch(`/api/data/projects/${projectId}/csv/export?${new URLSearchParams(query)}`);
+      if (!response.ok) { const body = await response.json(); throw new Error(body.error ?? "Não foi possível exportar."); }
+      const url = URL.createObjectURL(await response.blob());
+      const link = document.createElement("a"); link.href = url; link.download = "qa-metrics-casos.csv"; link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setNotice("CSV exportado com os filtros atuais.");
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Não foi possível exportar."); }
+    finally { setBusy(false); }
+  }
   const suites = data?.suites ?? [];
   const suiteOptions = suites.map(value => <option key={value.id} value={value.id}>{suitePath(value, suites)}</option>);
   return <section className="panel case-library" aria-label="Biblioteca de testes">
     <div className="library-heading"><div><h2>Biblioteca de testes</h2><p>{data ? `${data.total} ${data.total === 1 ? "caso encontrado" : "casos encontrados"}` : "Carregando casos…"}</p></div>
-      <div className="library-actions"><Button variant="outline" onClick={() => { setSuiteEditor(true); setError(""); }}>Gerenciar suítes</Button><Button variant="outline" onClick={() => setFeature({})}>BDD / .feature</Button><Button onClick={onCreate}>Novo caso</Button></div>
+      <div className="library-actions"><Button variant="outline" onClick={() => { setSuiteEditor(true); setError(""); }}>Gerenciar suítes</Button><Button variant="outline" onClick={() => setFeature({})}>BDD / .feature</Button><Button variant="outline" onClick={() => setCSV(true)}>Importar CSV</Button><Button variant="outline" disabled={busy} onClick={() => void downloadCSV()}>Exportar CSV dos filtros</Button><Button onClick={onCreate}>Novo caso</Button></div>
     </div>
     {error && <p className="alert alert-error" role="alert">{error} <button onClick={() => setReload(value => value + 1)}>Tentar novamente</button></p>}
     {notice && <p role="status">{notice}</p>}
@@ -64,7 +78,7 @@ export function CaseLibrary({ projectId, version, onCreate, onEdit, onDetail, on
       <Field label="Suíte"><select value={query.suiteId} onChange={event => filter("suiteId", event.target.value)}><option value="">Todas as suítes</option><option value="none">Sem suíte</option>{suiteOptions}</select></Field>
       <Field label="Tipo"><select value={query.type} onChange={event => filter("type", event.target.value)}><option value="">Todos os tipos</option>{Object.entries(caseTypeLabels).map(([key, value]) => <option key={key} value={key}>{value}</option>)}</select></Field>
       <Field label="Formato"><select value={query.format} onChange={event => filter("format", event.target.value)}><option value="">Todos os formatos</option><option value="STEPS">Passos tradicionais</option><option value="BDD">BDD / Gherkin</option></select></Field>
-      <Field label="Origem"><select value={query.origin} onChange={event => filter("origin", event.target.value)}><option value="">Todas as origens</option><option value="MANUAL">Manual</option><option value="JUNIT">JUnit</option><option value="GHERKIN">Gherkin</option></select></Field>
+      <Field label="Origem"><select value={query.origin} onChange={event => filter("origin", event.target.value)}><option value="">Todas as origens</option><option value="MANUAL">Manual</option><option value="JUNIT">JUnit</option><option value="GHERKIN">Gherkin</option><option value="CSV">CSV</option></select></Field>
       <Field label="Estado"><select value={query.state} onChange={event => filter("state", event.target.value)}><option value="ALL">Todos os estados</option>{Object.entries(caseStateLabels).map(([key, value]) => <option key={key} value={key}>{value}</option>)}</select></Field>
       <Field label="Tag"><input value={query.tag} onChange={event => filter("tag", event.target.value)} placeholder="smoke" /></Field>
     </div></details>
@@ -74,7 +88,7 @@ export function CaseLibrary({ projectId, version, onCreate, onEdit, onDetail, on
       <th>Caso de teste</th><th>Classificação</th><th>Suíte e tags</th><th>Ações</th>
     </tr></thead><tbody>{data.cases.map(value => <tr key={value.id}>
       <td><input type="checkbox" aria-label={`Selecionar ${caseCode(value.number)}`} checked={selected.includes(value.id)} onChange={event => setSelected(current => event.target.checked ? [...current, value.id] : current.filter(id => id !== value.id))} /></td>
-      <td><button className="table-title" onClick={() => onDetail(value)}><span className="case-number">{caseCode(value.number)}</span>{value.title}</button><small>Revisão {value.revision} · {value.origin === "JUNIT" ? "JUnit" : value.origin === "GHERKIN" ? "Gherkin" : "Manual"}{value.format === "BDD" ? " · BDD especificado" : ""}</small></td>
+      <td><button className="table-title" onClick={() => onDetail(value)}><span className="case-number">{caseCode(value.number)}</span>{value.title}</button><small>Revisão {value.revision} · {value.origin === "JUNIT" ? "JUnit" : value.origin === "GHERKIN" ? "Gherkin" : value.origin === "CSV" ? "CSV" : "Manual"}{value.format === "BDD" ? " · BDD especificado" : ""}</small></td>
       <td>{priorityLabels[value.priority]} · {caseTypeLabels[value.type]}<br />{caseStateLabels[value.state]}</td>
       <td>{suites.find(suite => suite.id === value.suiteId)?.name ?? "Sem suíte"}<small>{value.tags.map(tag => `@${tag}`).join(" ") || "Sem tags"}</small></td>
       <td><div className="library-row-actions">
@@ -105,12 +119,13 @@ export function CaseLibrary({ projectId, version, onCreate, onEdit, onDetail, on
       <form onSubmit={event => { event.preventDefault(); const value = bulkField === "tags" ? bulkValue.split(",").map(tag => tag.trim()).filter(Boolean) : bulkField === "suiteId" ? bulkValue || null : bulkValue; void act(() => request(`projects/${projectId}/cases/bulk`, { method: "PATCH", body: JSON.stringify({ ids: selected, changes: { [bulkField]: value } }) }), "Casos alterados. As revisões anteriores foram preservadas.").then(ok => { if (ok) { setBulk(false); setSelected([]); } }); }}>
         <Field label="Campo"><select value={bulkField} onChange={event => { setBulkField(event.target.value); setBulkValue(event.target.value === "state" ? "ARCHIVED" : event.target.value === "priority" ? "MEDIUM" : event.target.value === "type" ? "FUNCTIONAL" : ""); }}><option value="state">Estado</option><option value="priority">Prioridade</option><option value="type">Tipo</option><option value="suiteId">Suíte</option><option value="tags">Tags (substituir)</option></select></Field>
         <Field label="Novo valor">{bulkField === "tags" ? <input value={bulkValue} onChange={event => setBulkValue(event.target.value)} placeholder="smoke, regressao (vazio remove tags)" /> : <select value={bulkValue} onChange={event => setBulkValue(event.target.value)}>{bulkField === "suiteId" ? <><option value="">Sem suíte</option>{suiteOptions}</> : Object.entries(bulkField === "state" ? caseStateLabels : bulkField === "type" ? caseTypeLabels : priorityLabels).map(([key, value]) => <option key={key} value={key}>{value}</option>)}</select>}</Field>
-        <div className="form-footer"><Button disabled={busy}>Aplicar em {selected.length} casos</Button></div>
+        <div className="form-footer"><Button disabled={busy}>Aplicar em {selected.length} {selected.length === 1 ? "caso" : "casos"}</Button></div>
       </form>
     </Dialog>
     <Dialog open={!!history} onOpenChange={open => { if (!open) setHistory(null); }} title={`Revisões · ${history?.title ?? ""}`} description="Definições anteriores do caso. Execuções mantêm seus próprios snapshots.">
       {history?.revisions.map(value => <details key={value.id}><summary>Revisão {value.revision} · {new Date(value.createdAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}</summary><h3>{value.snapshot.title}</h3><p>{value.snapshot.description}</p><p>{priorityLabels[value.snapshot.priority]} · {caseStateLabels[value.snapshot.state]} · {value.snapshot.tags?.join(", ")}</p><p>{value.snapshot.preconditions}</p><ol>{value.snapshot.steps?.map((step, index) => <li key={index}>{step}</li>)}</ol><p>Esperado: {value.snapshot.expectedResult}</p>{value.snapshot.gherkinSource && <GherkinSource source={value.snapshot.gherkinSource} />}</details>)}
     </Dialog>
     {feature && <FeatureEditor projectId={projectId} testCase={feature.testCase} suites={suites} onClose={() => setFeature(null)} onSaved={async () => { await onChanged(); setReload(value => value + 1); setNotice("Cenários salvos com histórico preservado."); }} />}
+    {csv && <CSVDialog projectId={projectId} onClose={() => setCSV(false)} onSaved={async result => { await onChanged(); setReload(value => value + 1); setNotice(`CSV importado: ${result.created} criados e ${result.updated} atualizados.`); }} />}
   </section>;
 }

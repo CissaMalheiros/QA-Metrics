@@ -18,7 +18,7 @@ export const BUG_STATUSES = [
 export const SEVERITIES = ["LOW", "MEDIUM", "HIGH", "CRITICAL"] as const;
 export const RUN_STATUSES = ["OPEN", "COMPLETED"] as const;
 export const RUN_SOURCES = ["MANUAL", "JUNIT_IMPORT"] as const;
-export const CASE_ORIGINS = ["MANUAL", "JUNIT", "GHERKIN"] as const;
+export const CASE_ORIGINS = ["MANUAL", "JUNIT", "GHERKIN", "CSV"] as const;
 export const CASE_TYPES = ["FUNCTIONAL", "API", "UI", "INTEGRATION", "SECURITY", "EXPLORATORY"] as const;
 export const CASE_STATES = ["DRAFT", "READY", "ARCHIVED"] as const;
 

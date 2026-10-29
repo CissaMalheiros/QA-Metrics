@@ -10,7 +10,7 @@ Estado inicial: `3c9b3b4`, árvore limpa. Reutilizar Node 24 e pnpm em `.tools/n
 | Fase | Estado | Escopo/pendência |
 | --- | --- | --- |
 | 8 | Concluída e validada | Auditoria do MVP, retenção de histórico, AuditLog transacional, migração aditiva e teste com registros antigos |
-| 9 | Em andamento — 9.1 implementada | Organização, revisões e BDD/feature validados; CSV pendente, não avançar à fase 10 |
+| 9 | Concluída e validada | Organização, revisões, BDD/feature e CSV com frontend/backend/banco/testes |
 | 10 | Não iniciada | Planos reutilizáveis, versões, builds e ambientes |
 | 11 | Não iniciada | Execução guiada, rascunhos, autoria, duração e fluxo contextual de defeito |
 | 12 | Não iniciada | Defeitos, retestes e evidências privadas |
@@ -70,8 +70,15 @@ Estado inicial: `3c9b3b4`, árvore limpa. Reutilizar Node 24 e pnpm em `.tools/n
 - Classificação omitida em reimportações é preservada, incluindo estado arquivado, prioridade e tags adicionais.
 - Teste direcionado BDD no navegador passou, incluindo arquivo, erro de sintaxe, prévia, persistência, exportação, execução manual e edição sem trocar código. Lint/types/71 unitários passaram. Integração completa (28 testes), E2E completo (3 testes) e build passaram. Capturas desktop/móvel inspecionadas; aguardou-se o fechamento do sidebar antes da captura móvel para não registrar uma transição.
 - Migração `202610290004_gherkin` aplicada somente na base isolada; antigo formato STEPS e snapshots preservados. Dependências fixadas em versões exatas.
-- 9.3 pendente: CSV com prévia, mapeamento de colunas, validação por linha e exportação segura.
+- Commit local 9.2: `6f27413` — feat: validar e gerenciar especificações BDD em Gherkin.
+- 9.3 implementada e validada: CSV UTF-8 (vírgula/ponto e vírgula, aspas e multilinha), mapeamento, prévia paginada com linha física/erros/avisos, CREATE/UPSERT por código/ID, geração atômica de suítes, exportação dos filtros e BDD em CSV.
+- Limites: 256 KiB/1.000 linhas na entrada, 200 suítes novas; exportação de até 1.000 casos/5 MiB. `qaMetricsEncoding=apostrophe-v1` preserva round-trip dos escapes de fórmula, apóstrofos e Gherkin iniciado por tags.
+- IDs externos CSV têm namespace csv:, códigos internos nunca são sobrescritos e títulos não conciliam registros. CSV não gera TestRun/TestResult. Definição automatizada sem passos é criada como rascunho quando nova.
+- Foram validados rollback do lote inválido, revisões/snapshots, hierarquia, referências externas, isolamento, BDD em CSV e reimportação sem trocar código/fonte original.
+- Casos revisados também são preservados mesmo sem ciclos: exclusão exige ausência de resultados e revisão inicial. Corrigida a seleção de ciclos para não considerar casos arquivados e ajustados textos no singular.
+- Verificação completa desta entrega: lint/types/build, 81 unitários, 36 de integração e 4 E2E passaram. Depois foi ampliado o E2E CSV para simular falha de leitura após gravação: UI agora informa que a gravação ocorreu e permite recarregar sem repetir a escrita. Revalidação direcionada desse ajuste passou, assim como lint, typecheck e build após o ajuste.
+- Primeira revalidação do ajuste falhou apenas por seletor de alert ambíguo com o anunciador do Next.js; seletor passou a usar o main do produto. A repetição passou com seletor escopado ao main; não houve nova gravação no retry de leitura.
 
 ## Próxima ação
 
-Commit local 9.2: feat: validar e gerenciar especificações BDD em Gherkin (hash no próximo registro). Implementar CSV (9.3) antes de marcar a fase 9 concluída. Não avançar à fase 10 antes dos aceites. Documentação oficial consultada: https://cucumber.io/docs/gherkin/reference/, https://cucumber.io/docs/gherkin/languages/ e fontes/types oficiais dos pacotes instalados. O formulário Field existente foi compartilhado para garantir rótulos explícitos também em selects e textarea (falha de localização encontrada no E2E).
+Fase 9 concluída. Commit local 9.3: feat: importar e exportar casos CSV com prévia segura (hash no próximo registro). Iniciar fase 10 (planos reutilizáveis, versões/builds, ambientes, responsáveis, critérios e estados). Documentação oficial consultada: https://cucumber.io/docs/gherkin/reference/, https://cucumber.io/docs/gherkin/languages/ e fontes/types oficiais dos pacotes instalados. O formulário Field existente foi compartilhado para garantir rótulos explícitos também em selects e textarea (falha de localização encontrada no E2E).

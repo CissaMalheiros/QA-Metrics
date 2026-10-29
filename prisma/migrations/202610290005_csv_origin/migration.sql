@@ -1,0 +1,1 @@
+ALTER TYPE "CaseOrigin" ADD VALUE 'CSV';
