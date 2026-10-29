@@ -11,7 +11,7 @@ Estado inicial: `3c9b3b4`, árvore limpa. Reutilizar Node 24 e pnpm em `.tools/n
 | --- | --- | --- |
 | 8 | Concluída e validada | Auditoria do MVP, retenção de histórico, AuditLog transacional, migração aditiva e teste com registros antigos |
 | 9 | Concluída e validada | Organização, revisões, BDD/feature e CSV com frontend/backend/banco/testes |
-| 10 | Em andamento — 10.1 | Planos reutilizáveis, versões, builds e ambientes |
+| 10 | Concluída e validada | Planos reutilizáveis, versões, builds e ambientes |
 | 11 | Não iniciada | Execução guiada, rascunhos, autoria, duração e fluxo contextual de defeito |
 | 12 | Não iniciada | Defeitos, retestes e evidências privadas |
 | 13 | Não iniciada | Requisitos e rastreabilidade |
@@ -81,10 +81,16 @@ Estado inicial: `3c9b3b4`, árvore limpa. Reutilizar Node 24 e pnpm em `.tools/n
 
 ## Próxima ação
 
-Fase 9 concluída. Commit local 9.3: `91788e9` — feat: importar e exportar casos CSV com prévia segura. Fase 10.1 em implementação: CRUD com arquivamento de ambientes e versões, isolado por projeto, migração 006. Depois: planos/casos ordenados e revisões, builds/contexto por execução, responsáveis/datas/critérios, estados válidos e métricas/bugs contextualizados. Não marcar fase 10 concluída por apenas entregar cadastros. Documentação oficial consultada: https://cucumber.io/docs/gherkin/reference/, https://cucumber.io/docs/gherkin/languages/ e fontes/types oficiais dos pacotes instalados. O formulário Field existente foi compartilhado para garantir rótulos explícitos também em selects e textarea (falha de localização encontrada no E2E).
+Fase 10 concluída. Próxima ação: Fase 11, execução manual guiada, rascunhos persistidos, executor/duração/resultado real, histórico de correções e defeito contextual. Commit 10.1: 86191c0. Commit restante da fase 10 registrado na próxima atualização.
 
 ## Ajuste de execução após feedback do usuário
 
-Uma entrega pequena por vez; análise apenas do trecho atual; saídas curtas; testes direcionados durante a entrega e suíte completa no fechamento da fase; não antecipar fases. Commits locais continuam autorizados e push proibido.
+Priorizar funcionalidades prontas, sem obrigação de fragmentar em pequenas entregas (orientação posterior do usuário). Análise apenas do trecho atual, saídas curtas e validações proporcionais; não antecipar fases. Commits locais continuam autorizados e push proibido.
 
 - 10.1 validada: ambientes e versões com criação/edição/arquivamento, autorização por projeto e auditoria transacional. Migração 006 preserva dados anteriores. Quatro testes direcionados de integração/migração, E2E CSV com cadastros, TypeScript e lint passaram. Próxima entrega: planos reutilizáveis com casos ordenados e revisões preservadas.
+
+### Fase 10 validada
+- Planos criados/editados/clonados/arquivados; casos ordenados, categorias, revisões fixadas e atualização explícita; templates Smoke/Regressão/Homologação com casos reais e filtro de tags BDD.
+- Execuções por plano ou seleção, ambientes/releases/builds, responsável validado no workspace, datas, notas e critérios. Snapshot de contexto e revisão preservado em cada execução, inclusive após renomear/arquivar cadastros.
+- Rascunho → em andamento → concluído/cancelado; bloqueio de transições e resultados inválidos; métricas e bugs apresentam o contexto original. Cancelados/rascunhos fora dos indicadores. Migração 007 aditiva, base original intacta.
+- Lint, types e build passaram; suíte de 81 unitários/42 integração passou, seguida dos testes novos de datas e BDD (total atual 82 unitários/43 integração). Cinco jornadas E2E passaram: quatro na suíte e planejamento na revalidação direcionada após corrigir seletor ambíguo de navegação. Rota de planos separada do carregamento de contexto e revalidada no E2E. Captura desktop inspecionada.

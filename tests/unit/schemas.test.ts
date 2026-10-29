@@ -101,6 +101,13 @@ describe("validação de entradas", () => {
     ).toEqual(["a", "b"]);
   });
 
+  it("valida plano exclusivo e compara datas com precisão independente da representação", () => {
+    expect(runSchema.safeParse({ name: "Regressão", planId: "p", testCaseIds: ["c"] }).success).toBe(false);
+    expect(runSchema.safeParse({ name: "Regressão", planId: "p" }).success).toBe(true);
+    expect(runSchema.safeParse({ name: "Regressão", planId: "p", scheduledStart: "2026-10-29T10:00:00Z", scheduledEnd: "2026-10-29T10:00:00.100Z" }).success).toBe(true);
+    expect(runSchema.safeParse({ name: "Regressão", planId: "p", scheduledEnd: "2026-10-29T10:00:00Z", scheduledStart: "2026-10-29T10:00:00.100Z" }).success).toBe(false);
+  });
+
   it("aceita somente situações de resultado conhecidas", () => {
     expect(resultSchema.parse({ status: "BLOCKED" })).toEqual({
       status: "BLOCKED",

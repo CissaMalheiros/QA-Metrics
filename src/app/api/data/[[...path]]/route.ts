@@ -55,6 +55,14 @@ async function handle(
     } else if (collection === "projects" && projectId) {
       if (resource === "planning" && path.length === 3 && method === "GET") {
         result = await planning.getPlanning(userId, projectId);
+      } else if (resource === "plans" && path.length === 3 && method === "GET") {
+        result = { plans: await planning.listPlans(userId, projectId) };
+      } else if (resource === "plans" && path.length === 3 && method === "POST") {
+        result = { plan: await planning.savePlan(userId, projectId, await readJson(request)) }; status = 201;
+      } else if (resource === "plans" && resourceId && path.length === 4 && method === "PATCH") {
+        result = { plan: await planning.savePlan(userId, projectId, await readJson(request), resourceId) };
+      } else if (resource === "plans" && resourceId && action === "clone" && path.length === 5 && method === "POST") {
+        result = { plan: await planning.clonePlan(userId, projectId, resourceId) }; status = 201;
       } else if (resource === "environments" && path.length === 3 && method === "POST") {
         result = { environment: await planning.saveEnvironment(userId, projectId, await readJson(request)) }; status = 201;
       } else if (resource === "environments" && resourceId && path.length === 4 && method === "PATCH") {
@@ -146,6 +154,8 @@ async function handle(
       } else if (resource === "runs" && resourceId) {
         if (path.length === 4 && method === "GET")
           result = { run: await service.getRun(userId, projectId, resourceId) };
+        else if (path.length === 5 && (action === "start" || action === "cancel") && method === "POST")
+          result = { run: await service.transitionRun(userId, projectId, resourceId, action) };
         else if (
           path.length === 5 &&
           action === "complete" &&

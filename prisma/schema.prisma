@@ -27,8 +27,10 @@ enum RunSource {
   JUNIT_IMPORT
 }
 enum RunStatus {
+  DRAFT
   OPEN
   COMPLETED
+  CANCELED
 }
 enum ResultStatus {
   PASSED
@@ -133,6 +135,7 @@ model Project {
   nextCaseNumber Int @default(1)
   environments Environment[]
   releases Release[]
+  plans TestPlan[]
   @@index([workspaceId])
 }
 model TestCase {
@@ -168,6 +171,7 @@ model TestCase {
   updatedAt DateTime @updatedAt
   results TestResult[]
   revisions TestCaseRevision[]
+  planItems TestPlanItem[]
   @@unique([projectId, number])
   @@index([projectId, state, suiteId])
   @@index([tags], type: Gin, map: "TestCase_tags_gin_idx")
@@ -183,7 +187,21 @@ model TestRun {
   source RunSource @default(MANUAL)
   status RunStatus @default(OPEN)
   importedFileSha256 String?
-  startedAt DateTime @default(now())
+  startedAt DateTime? @default(now())
+  planId String?
+  plan TestPlan? @relation(fields: [planId, projectId], references: [id, projectId], onDelete: Restrict)
+  environmentId String?
+  environment Environment? @relation(fields: [environmentId, projectId], references: [id, projectId], onDelete: Restrict)
+  releaseId String?
+  release Release? @relation(fields: [releaseId, projectId], references: [id, projectId], onDelete: Restrict)
+  build String @default("")
+  responsibleId String?
+  scheduledStart DateTime?
+  scheduledEnd DateTime?
+  notes String @default("")
+  entryCriteria String @default("")
+  exitCriteria String @default("")
+  contextSnapshot Json @default("{}")
   finishedAt DateTime?
   createdAt DateTime @default(now())
   results TestResult[]
@@ -199,6 +217,8 @@ model TestResult {
   run TestRun @relation(fields: [runId, projectId], references: [id, projectId], onDelete: Cascade)
   testCase TestCase @relation(fields: [testCaseId, projectId], references: [id, projectId], onDelete: Restrict)
   caseTitle String
+  position Int @default(0)
+  category String @default("")
   caseSnapshot Json
   status ResultStatus @default(NOT_RUN)
   durationMs Int?
@@ -276,6 +296,7 @@ model Environment {
   name String
   baseUrl String @default("")
   archived Boolean @default(false)
+  runs TestRun[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@unique([id, projectId])
@@ -289,8 +310,40 @@ model Release {
   name String
   version String
   archived Boolean @default(false)
+  runs TestRun[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@unique([id, projectId])
   @@unique([projectId, version])
+}
+
+model TestPlan {
+  id String @id @default(cuid())
+  projectId String
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name String
+  description String @default("")
+  archived Boolean @default(false)
+  revision Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  items TestPlanItem[]
+  runs TestRun[]
+  @@unique([id, projectId])
+  @@index([projectId, archived])
+}
+
+model TestPlanItem {
+  id String @id @default(cuid())
+  projectId String
+  planId String
+  plan TestPlan @relation(fields: [planId, projectId], references: [id, projectId], onDelete: Cascade)
+  testCaseId String
+  testCase TestCase @relation(fields: [testCaseId, projectId], references: [id, projectId], onDelete: Restrict)
+  revision Int
+  caseSnapshot Json
+  position Int
+  category String @default("")
+  @@unique([planId, testCaseId])
+  @@unique([planId, position])
 }

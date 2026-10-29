@@ -204,6 +204,10 @@ Alterações críticas realizadas pelos serviços autenticados geram eventos tra
 
 O PostgreSQL do Compose usa volume persistente. `docker compose stop` interrompe o banco preservando os dados. O arquivo `.env`, banco local, diretórios gerados e diagnósticos de testes não devem ser adicionados ao Git. Guarde o `.env` de forma privada; a chave de sessão é necessária para manter as sessões existentes.
 
+Planos de teste podem reunir casos tradicionais e BDD, com ordem, categoria e revisão fixa. Os templates adicionam casos reais: Smoke usa `@smoke`, Regressão usa casos prontos e Homologação usa casos funcionais prontos. Atualizar um caso não muda silenciosamente os planos; use a ação de atualizar sua revisão no plano.
+
+Cadastre ambientes e versões por projeto e informe build, responsável, datas previstas, observações e critérios ao criar uma execução. Cada execução mantém suas próprias revisões e uma cópia do contexto: renomear ou arquivar cadastros não reescreve o histórico. Rascunhos precisam ser iniciados antes de registrar resultados; ciclos concluídos ou cancelados ficam preservados. Rascunhos e cancelados não entram nos indicadores de execução. O ambiente textual do MVP e ciclos anteriores continuam preservados; não se infere contexto ausente nos dados antigos.
+
 Este MVP não inclui execução remota de testes, ingestão por API pública, integrações Jira/GitHub, colaboração avançada, IA, anexos de vídeo ou cobrança. A importação manual de XML funciona sem essas integrações.
 
 Documentação consultada para a configuração: [Prisma 7](https://www.prisma.io/docs/guides/upgrade-prisma-orm/v7), [Better Auth com Prisma](https://better-auth.com/docs/adapters/prisma), [Better Auth com Next.js](https://better-auth.com/docs/integrations/next) e [instalação do Next.js](https://nextjs.org/docs/app/getting-started/installation).

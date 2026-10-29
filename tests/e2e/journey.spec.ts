@@ -3,6 +3,90 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 
+test("reutiliza plano em duas builds e preserva revisão, contexto, estados e métricas", async ({ page }) => {
+  const identifier = randomUUID().slice(0, 8);
+  await page.goto("/cadastro");
+  await page.getByLabel("Nome", { exact: true }).fill("QA Planejamento");
+  await page.getByLabel("E-mail", { exact: true }).fill(`planning-${identifier}@example.test`);
+  await page.getByLabel("Senha", { exact: true }).fill(`Qa-${randomUUID()}`);
+  await page.getByRole("button", { name: "Criar conta", exact: true }).click();
+  await expect(page).toHaveURL(/dashboard/);
+  const projectName = `Planejamento ${identifier}`;
+  await createProject(page, projectName, "Cliente planejamento");
+  await page.getByText(projectName, { exact: true }).last().click();
+  await expect(page).toHaveURL(/project=/);
+  const projectId = new URL(page.url()).searchParams.get("project")!;
+  async function api(resource: string, data: unknown, method = "POST") {
+    const response = await page.request.fetch(`/api/data/projects/${projectId}/${resource}`, { method, headers: { Origin: "http://localhost:3100" }, data });
+    expect(response.ok(), await response.text()).toBeTruthy(); return response.json();
+  }
+  const first = (await api("cases", { title: "Validar compra planejada", steps: ["Comprar no checkout"], expectedResult: "Pedido confirmado", tags: ["smoke"] })).testCase;
+  await api("cases", { title: "Validar cupom planejado", steps: ["Aplicar cupom"], expectedResult: "Desconto aplicado", tags: ["smoke"] });
+  const env = (await api("environments", { name: "QA Checkout", baseUrl: "https://qa.example.test" })).environment;
+  const release = (await api("releases", { name: "Checkout", version: "4.0.0" })).release;
+  await page.reload();
+  await page.getByRole("button", { name: "Planos de teste", exact: true }).click();
+  await page.getByRole("button", { name: "Novo plano", exact: true }).click();
+  let dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Nome do plano", { exact: true }).fill("Smoke checkout");
+  await dialog.getByLabel("Objetivo do plano", { exact: true }).fill("Validar a compra antes de liberar");
+  await dialog.getByRole("button", { name: "Adicionar template Smoke", exact: true }).click();
+  await expect(dialog.getByRole("heading", { name: "Casos selecionados (2)", exact: true })).toBeVisible();
+  await dialog.getByRole("button", { name: "Subir Validar cupom planejado", exact: true }).click();
+  await dialog.getByLabel("Categoria de Validar cupom planejado", { exact: true }).fill("Cupons");
+  await dialog.getByRole("button", { name: "Salvar plano", exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  await api(`cases/${first.id}`, { title: "Compra alterada depois do plano", steps: ["Passo novo"] }, "PATCH");
+  await page.getByRole("button", { name: "Clonar Smoke checkout", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Smoke checkout (cópia)", exact: true })).toBeVisible();
+  for (const [build, draft] of [["400", true], ["401", false]] as const) {
+    await page.getByRole("button", { name: "Executar Smoke checkout", exact: true }).click();
+    dialog = page.getByRole("dialog");
+    await dialog.getByLabel("Nome do ciclo", { exact: true }).fill(`Smoke build ${build}`);
+    await expect(dialog.getByLabel("Ambiente", { exact: true })).toBeEnabled();
+    await dialog.getByLabel("Ambiente", { exact: true }).selectOption(env.id);
+    await dialog.getByLabel("Release / versão", { exact: true }).selectOption(release.id);
+    await dialog.getByLabel("Build", { exact: true }).fill(build);
+    await dialog.getByLabel("Responsável", { exact: true }).selectOption({ label: "QA Planejamento" });
+    await dialog.getByLabel("Critérios de entrada", { exact: true }).fill("Build disponível");
+    await dialog.getByLabel("Critérios de saída", { exact: true }).fill("Smoke aprovado");
+    if (draft) await dialog.getByLabel("Salvar como rascunho", { exact: true }).check();
+    await dialog.getByRole("button", { name: "Criar execução", exact: true }).click();
+    await expect(dialog).not.toBeVisible();
+  }
+  await page.getByRole("button", { name: "Ciclos", exact: true }).click();
+  await page.getByRole("button", { name: /Smoke build 400/ }).click();
+  dialog = page.getByRole("dialog");
+  await expect(dialog.getByLabel("Resultado de Validar compra planejada", { exact: true })).toBeDisabled();
+  await dialog.getByRole("button", { name: "Iniciar ciclo", exact: true }).click();
+  await expect(dialog.getByLabel("Resultado de Validar compra planejada", { exact: true })).toBeEnabled();
+  await dialog.getByLabel("Resultado de Validar compra planejada", { exact: true }).selectOption("FAILED");
+  await dialog.locator("article").filter({ has: page.getByRole("heading", { name: "Validar compra planejada", exact: true }) }).getByRole("button", { name: "Salvar resultado", exact: true }).click();
+  await dialog.getByRole("button", { name: "Encerrar ciclo", exact: true }).click();
+  await expect(dialog.getByLabel("Resultado de Validar compra planejada", { exact: true })).toBeDisabled();
+  await dialog.getByRole("button", { name: "Fechar", exact: true }).click();
+  await page.getByRole("button", { name: /Smoke build 401/ }).click();
+  dialog = page.getByRole("dialog");
+  await expect(dialog).toContainText("Versão 4.0.0 · Build 401 · Ambiente QA Checkout");
+  const articles = dialog.locator("article");
+  await expect(articles.first()).toContainText("Validar cupom planejado");
+  await expect(articles.first()).toContainText("Categoria: Cupons");
+  await expect(dialog.getByLabel("Resultado de Validar compra planejada", { exact: true })).toHaveValue("NOT_RUN");
+  await dialog.getByLabel("Resultado de Validar compra planejada", { exact: true }).selectOption("PASSED");
+  await articles.filter({ has: page.getByRole("heading", { name: "Validar compra planejada", exact: true }) }).getByRole("button", { name: "Salvar resultado", exact: true }).click();
+  await dialog.getByRole("button", { name: "Fechar", exact: true }).click();
+  await api(`environments/${env.id}`, { name: "QA renomeado", archived: true }, "PATCH");
+  await api(`releases/${release.id}`, { version: "4.1.0", archived: true }, "PATCH");
+  await page.getByRole("navigation", { name: "Seções do projeto", exact: true }).getByRole("button", { name: "Visão geral", exact: true }).click();
+  await page.getByLabel("Filtrar métricas por ciclo", { exact: true }).selectOption({ label: "Smoke build 400 · build 400" });
+  await expect(page.getByRole("region", { name: "Contexto dos indicadores", exact: true })).toContainText("Versão 4.0.0 · Build 400 · Ambiente QA Checkout");
+  const response = await page.request.get(`/api/data/projects/${projectId}/runs`);
+  const runs = (await response.json()).runs;
+  expect(runs.find((run: { name: string }) => run.name === "Smoke build 400").results.find((result: { testCaseId: string }) => result.testCaseId === first.id).status).toBe("FAILED");
+  expect(runs.find((run: { name: string }) => run.name === "Smoke build 401").results.find((result: { testCaseId: string }) => result.testCaseId === first.id).status).toBe("PASSED");
+  await page.screenshot({ path: ".local/planning-desktop.png", fullPage: true });
+});
+
 async function createProject(page: Page, name: string, client: string) {
   await expect(page.getByRole("heading", { name: /Seus projetos/ })).toBeVisible();
   await page

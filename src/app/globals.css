@@ -2496,3 +2496,7 @@ tbody tr:hover {
     scroll-behavior: auto !important;
   }
 }
+.run-context-summary { display: block; color: var(--muted); font-size: .85rem; overflow-wrap: anywhere; }
+.plan-items { display: grid; gap: 1rem; padding-left: 1.5rem; }
+.plan-items li { padding: .75rem; border: 1px solid var(--line); border-radius: .5rem; }
+@media (max-width: 640px) { .context-row { flex-wrap: wrap; } .plan-items button { overflow-wrap: anywhere; white-space: normal; } }

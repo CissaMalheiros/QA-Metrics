@@ -17,11 +17,11 @@ import { ServiceError } from "@/server/errors";
 import { recordAudit } from "@/server/audit";
 
 type DataClient = Prisma.TransactionClient;
-const projectCounts = { testCases: true, runs: true, bugs: true, suites: true, environments: true, releases: true } as const;
-const runInclude = { results: { orderBy: { id: "asc" as const } } } as const;
+const projectCounts = { testCases: true, runs: true, bugs: true, suites: true, environments: true, releases: true, plans: true } as const;
+const runInclude = { results: { orderBy: [{ position: "asc" }, { id: "asc" }] } } satisfies Prisma.TestRunInclude;
 const bugInclude = {
   testResult: {
-    select: { id: true, caseTitle: true, status: true, runId: true },
+    select: { id: true, caseTitle: true, status: true, runId: true, run: { select: { contextSnapshot: true } } },
   },
 } as const;
 
@@ -145,7 +145,7 @@ export async function getOverview(userId: string) {
     }),
     db.bug.findMany({
       where: { project: membership(userId) },
-      include: { project: { select: { id: true, name: true } } },
+      include: { ...bugInclude, project: { select: { id: true, name: true } } },
       orderBy: { createdAt: "desc" },
     }),
   ]);
@@ -155,7 +155,7 @@ export async function getOverview(userId: string) {
     projects,
     runs,
     bugs,
-    metrics: calculateMetrics(runs.flatMap((run) => run.results)),
+    metrics: calculateMetrics(runs.filter(run => !["DRAFT", "CANCELED"].includes(run.status)).flatMap((run) => run.results)),
   };
 }
 
@@ -205,7 +205,7 @@ export async function getProject(userId: string, projectId: string) {
     suites,
     runs,
     bugs,
-    metrics: calculateMetrics(runs.flatMap((run) => run.results)),
+    metrics: calculateMetrics(runs.filter(run => !["DRAFT", "CANCELED"].includes(run.status)).flatMap((run) => run.results)),
   };
 }
 
@@ -297,10 +297,10 @@ export async function deleteCase(
       where: { id: caseId, projectId },
     });
     if (!testCase) throw new ServiceError(404, "Caso de teste não encontrado.");
-    if (testCase.revision > 1 || await client.testResult.count({ where: { testCaseId: caseId } })) {
+    if (testCase.revision > 1 || await client.testResult.count({ where: { testCaseId: caseId } }) || await client.testPlanItem.count({ where: { testCaseId: caseId } })) {
       throw new ServiceError(
         409,
-        "Este caso possui revisões ou execuções. Arquive-o para preservar o histórico.",
+        "Este caso possui revisões, planos ou execuções. Arquive-o para preservar o histórico.",
       );
     }
     await client.testCase.delete({ where: { id: caseId } });
@@ -334,31 +334,62 @@ export async function createRun(
 ) {
   const data = runSchema.parse(input);
   return withProject(userId, projectId, "RUN_CREATED", async (client) => {
+    const plan = data.planId ? await client.testPlan.findFirst({ where: { id: data.planId, projectId, archived: false }, include: { items: { orderBy: { position: "asc" } } } }) : null;
+    if (data.planId && !plan) throw new ServiceError(400, "Selecione um plano ativo deste projeto.");
+    const ids = plan ? plan.items.map(item => item.testCaseId) : data.testCaseIds;
     const cases = await client.testCase.findMany({
-      where: { projectId, id: { in: data.testCaseIds }, state: { not: "ARCHIVED" } },
+      where: { projectId, id: { in: ids }, state: { not: "ARCHIVED" } },
     });
-    if (cases.length !== data.testCaseIds.length)
+    if (!ids.length || cases.length !== ids.length)
       throw new ServiceError(
         400,
         "Todos os casos devem pertencer a este projeto e não estar arquivados.",
       );
+    const context = await resolveRunContext(client, projectId, data);
     const run = await client.testRun.create({
-      data: { projectId, name: data.name, source: "MANUAL", status: "OPEN" },
+      data: { projectId, name: data.name, source: "MANUAL", status: data.draft ? "DRAFT" : "OPEN", startedAt: data.draft ? null : new Date(),
+        planId: plan?.id, environmentId: data.environmentId, releaseId: data.releaseId, build: data.build, responsibleId: data.responsibleId,
+        scheduledStart: data.scheduledStart, scheduledEnd: data.scheduledEnd, notes: data.notes, entryCriteria: data.entryCriteria, exitCriteria: data.exitCriteria,
+        contextSnapshot: { ...context, plan: plan ? { id: plan.id, name: plan.name, revision: plan.revision } : null },
+      },
     });
     await client.testResult.createMany({
-      data: cases.map((testCase) => ({
+      data: ids.map((id, position) => {
+        const testCase = cases.find(value => value.id === id)!;
+        const item = plan?.items[position];
+        return ({
         projectId,
         runId: run.id,
         testCaseId: testCase.id,
-        caseTitle: testCase.title,
-        caseSnapshot: snapshot(testCase),
+        caseTitle: item ? (item.caseSnapshot as { title: string }).title : testCase.title,
+        caseSnapshot: item ? item.caseSnapshot as Prisma.InputJsonValue : snapshot(testCase),
+        position, category: item?.category ?? "",
         status: "NOT_RUN" as const,
-      })),
+      }); }),
     });
     return client.testRun.findUniqueOrThrow({
       where: { id: run.id },
       include: runInclude,
     });
+  });
+}
+
+async function resolveRunContext(client: DataClient, projectId: string, data: { environmentId?: string; releaseId?: string; responsibleId?: string; build: string }) {
+  const environment = data.environmentId ? await client.environment.findFirst({ where: { id: data.environmentId, projectId, archived: false }, select: { id: true, name: true, baseUrl: true } }) : null;
+  const release = data.releaseId ? await client.release.findFirst({ where: { id: data.releaseId, projectId, archived: false }, select: { id: true, name: true, version: true } }) : null;
+  const responsible = data.responsibleId ? await client.workspaceMember.findFirst({ where: { userId: data.responsibleId, workspace: { projects: { some: { id: projectId } } } }, select: { user: { select: { id: true, name: true } } } }) : null;
+  if ((data.environmentId && !environment) || (data.releaseId && !release) || (data.responsibleId && !responsible)) throw new ServiceError(400, "Ambiente, versão e responsável devem estar ativos e pertencer a este projeto.");
+  return { environment, release, responsible: responsible?.user ?? null, build: data.build };
+}
+
+export async function transitionRun(userId: string, projectId: string, runId: string, action: "start" | "cancel") {
+  return withProject(userId, projectId, action === "start" ? "RUN_STARTED" : "RUN_CANCELED", async client => {
+    const run = await client.testRun.findFirst({ where: { id: runId, projectId }, include: runInclude });
+    if (!run) throw new ServiceError(404, "Ciclo não encontrado.");
+    const status = action === "start" ? "OPEN" : "CANCELED";
+    if (run.status === status) return run;
+    if (run.source !== "MANUAL" || (action === "start" ? run.status !== "DRAFT" : !["DRAFT", "OPEN"].includes(run.status))) throw new ServiceError(409, "Transição não permitida para este ciclo.");
+    return client.testRun.update({ where: { id: runId }, data: { status, ...(action === "start" ? { startedAt: new Date() } : { finishedAt: new Date() }) }, include: runInclude });
   });
 }
 
@@ -409,6 +440,7 @@ export async function completeRun(
     });
     if (!run) throw new ServiceError(404, "Ciclo não encontrado.");
     if (run.status === "COMPLETED") return run;
+    if (run.status !== "OPEN") throw new ServiceError(409, "Somente ciclos em andamento podem ser concluídos.");
     return client.testRun.update({
       where: { id: runId },
       data: { status: "COMPLETED", finishedAt: new Date() },

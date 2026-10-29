@@ -16,7 +16,7 @@ export const BUG_STATUSES = [
   "CLOSED",
 ] as const;
 export const SEVERITIES = ["LOW", "MEDIUM", "HIGH", "CRITICAL"] as const;
-export const RUN_STATUSES = ["OPEN", "COMPLETED"] as const;
+export const RUN_STATUSES = ["DRAFT", "OPEN", "COMPLETED", "CANCELED"] as const;
 export const RUN_SOURCES = ["MANUAL", "JUNIT_IMPORT"] as const;
 export const CASE_ORIGINS = ["MANUAL", "JUNIT", "GHERKIN", "CSV"] as const;
 export const CASE_TYPES = ["FUNCTIONAL", "API", "UI", "INTEGRATION", "SECURITY", "EXPLORATORY"] as const;
@@ -60,13 +60,24 @@ export const runSchema = z.object({
   name: text(200).min(3, "Informe um nome com pelo menos 3 caracteres."),
   testCaseIds: z
     .array(id)
-    .min(1, "Selecione pelo menos um caso.")
     .max(1000, "Selecione no máximo 1.000 casos por ciclo.")
     .refine(
       (ids) => new Set(ids).size === ids.length,
       "Selecione cada caso apenas uma vez.",
-    ),
-});
+    ).default([]),
+  planId: id.optional(),
+  environmentId: id.optional(),
+  releaseId: id.optional(),
+  build: text(120).default(""),
+  responsibleId: id.optional(),
+  scheduledStart: z.iso.datetime().optional(),
+  scheduledEnd: z.iso.datetime().optional(),
+  notes: text(5000).default(""),
+  entryCriteria: text(5000).default(""),
+  exitCriteria: text(5000).default(""),
+  draft: z.boolean().default(false),
+}).strict().refine(value => value.planId ? !value.testCaseIds.length : value.testCaseIds.length > 0, "Selecione um plano ou pelo menos um caso.")
+  .refine(value => !value.scheduledStart || !value.scheduledEnd || Date.parse(value.scheduledEnd) >= Date.parse(value.scheduledStart), "A data final deve ser igual ou posterior à inicial.");
 
 export const resultSchema = z.object({
   status: z.enum(RESULT_STATUSES),

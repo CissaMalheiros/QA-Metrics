@@ -48,6 +48,8 @@ import { Field } from "@/components/ui/field";
 import { request } from "@/lib/api-client";
 import { CaseLibrary } from "@/components/case-library";
 import { ProjectContext } from "@/components/project-context";
+import { TestPlans } from "@/components/test-plans";
+import { RunContextFields, RunContextSummary, runFormData, type RunContext } from "@/components/run-context";
 import { caseCode, caseStateLabels, caseTypeLabels, suitePath, type LibraryCase as Case, type Suite } from "@/domain/cases";
 import { GherkinSource } from "@/components/feature-editor";
 
@@ -65,6 +67,7 @@ type Result = {
   id: string;
   testCaseId: string;
   caseTitle: string;
+  category?: string;
   caseSnapshot: {
     title?: string;
     steps?: string[];
@@ -85,13 +88,20 @@ type Run = {
   source: string;
   status: string;
   createdAt: string;
-  startedAt: string;
+  startedAt: string | null;
+  contextSnapshot?: RunContext;
+  notes?: string;
+  entryCriteria?: string;
+  exitCriteria?: string;
+  scheduledStart?: string | null;
+  scheduledEnd?: string | null;
   finishedAt: string | null;
   projectId: string;
   results: Result[];
   project?: Project;
 };
 type Bug = {
+  testResult?: { run: { contextSnapshot: RunContext } } | null;
   id: string;
   title: string;
   description: string;
@@ -110,7 +120,7 @@ type Overview = {
   workspace: { name: string };
 };
 type Detail = { project: Project; cases: Case[]; runs: Run[]; bugs: Bug[]; suites: Suite[] };
-type Tab = "overview" | "projects" | "cases" | "runs" | "bugs" | "import" | "context";
+type Tab = "overview" | "projects" | "cases" | "runs" | "bugs" | "import" | "context" | "plans";
 type Editor = {
   kind: "project" | "case" | "run" | "bug";
   value?: Project | Case | Bug;
@@ -133,6 +143,8 @@ const labels: Record<string, string> = {
   RESOLVED: "Resolvido",
   CLOSED: "Fechado",
   COMPLETED: "Encerrado",
+  DRAFT: "Rascunho",
+  CANCELED: "Cancelado",
   MANUAL: "Manual",
   JUNIT: "JUnit",
   GHERKIN: "Gherkin",
@@ -271,7 +283,7 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
   useEffect(() => { navigationProject.current = projectId; }, [projectId]);
   const requestedTab = searchParams.get("tab") ?? "overview";
   const validTabs = projectId
-    ? ["overview", "cases", "runs", "bugs", "import", "context"]
+    ? ["overview", "cases", "runs", "bugs", "import", "context", "plans"]
     : ["overview", "projects"];
   const tab = (
     validTabs.includes(requestedTab) ? requestedTab : "overview"
@@ -402,7 +414,7 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
           .filter((step) => step.trim()),
       };
     if (kind === "run")
-      body = { name: values.name, testCaseIds: form.getAll("testCaseIds") };
+      body = runFormData(form);
     const path =
       kind === "project"
         ? `projects${id ? `/${id}` : ""}`
@@ -458,16 +470,17 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
   const bugs = projectId ? (detail?.bugs ?? []) : (overview?.bugs ?? []);
   const cases = detail?.cases ?? [];
   const availableCases = cases.filter(value => value.state !== "ARCHIVED");
+  const metricRuns = runs.filter(run => !["DRAFT", "CANCELED"].includes(run.status));
   const selectedRuns =
     runFilter === "all"
-      ? runs
+      ? metricRuns
       : runFilter === "latest"
         ? projectId
-          ? runs.slice(0, 1)
+          ? metricRuns.slice(0, 1)
           : projects.flatMap((p) =>
-              runs.filter((r) => r.projectId === p.id).slice(0, 1),
+              metricRuns.filter((r) => r.projectId === p.id).slice(0, 1),
             )
-        : runs.filter((r) => r.id === runFilter);
+        : metricRuns.filter((r) => r.id === runFilter);
   const metrics = calculateMetrics(
     selectedRuns.flatMap((run) => run.results ?? []),
   );
@@ -493,6 +506,7 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
     bugs: "Bugs",
     import: "Importar resultados",
     context: "Ambientes e versões",
+    plans: "Planos de teste",
   };
   return (
     <div className="app-layout">
@@ -701,6 +715,7 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
                     ["bugs", "Bugs", BugIcon],
                     ["import", "Importar XML", Upload],
                     ["context", "Ambientes e versões", FolderKanban],
+                    ["plans", "Planos de teste", ClipboardList],
                   ] as [Tab, string, LucideIcon][]
                 ).map(([id, label, Icon]) => (
                   <button
@@ -778,14 +793,15 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
                           <option value="all">
                             Todos os ciclos · todo o histórico
                           </option>
-                          {runs.map((run) => (
+                          {metricRuns.map((run) => (
                             <option key={run.id} value={run.id}>
-                              {run.name}
+                              {run.name} {run.contextSnapshot?.build ? `· build ${run.contextSnapshot.build}` : ""}
                             </option>
                           ))}
                         </select>
                       </label>
                     </div>
+                    <section aria-label="Contexto dos indicadores">{selectedRuns.map(run => <div key={run.id}><strong>{run.name}</strong><RunContextSummary value={run.contextSnapshot} /></div>)}<small>Rascunhos e ciclos cancelados não entram nos indicadores de execução.</small></section>
                     <div className="metrics-grid">
                       <MetricCard
                         label={projectId ? "Casos de teste" : "Projetos ativos"}
@@ -1056,6 +1072,7 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
                   />
                 )}
                 {tab === "context" && projectId && <ProjectContext key={projectId} projectId={projectId} />}
+                {tab === "plans" && projectId && <TestPlans key={projectId} projectId={projectId} cases={cases} onChanged={refreshAfterSave} />}
                 {tab === "cases" && projectId && (
                   <CaseLibrary key={projectId} projectId={projectId} version={cases}
                     onCreate={() => openEditor("case")} onEdit={value => openEditor("case", value)}
@@ -1081,6 +1098,8 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
                         <option value="">Todos os status</option>
                         <option value="OPEN">Abertos</option>
                         <option value="COMPLETED">Encerrados</option>
+                        <option value="DRAFT">Rascunhos</option>
+                        <option value="CANCELED">Cancelados</option>
                       </select>
                     </ListHeader>
                     {runs.length ? (
@@ -1177,6 +1196,7 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
                                       <BugIcon size={16} />
                                       {b.title}
                                     </button>
+                                    <RunContextSummary value={b.testResult?.run.contextSnapshot} />
                                   </td>
                                   <td>
                                     <Badge value={b.severity} />
@@ -1296,6 +1316,7 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
                   <p>Cadastre um caso de teste antes de criar um ciclo.</p>
                 )}
               </fieldset>
+              {projectId && <RunContextFields projectId={projectId} />}
             </>
           )}
           {editor?.kind === "bug" && (
@@ -1427,7 +1448,7 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
         {activeRun && (
           <div className="run-detail">
             <div className="run-detail-header">
-              <Badge value={activeRun.status} />
+                <Badge value={activeRun.status === "OPEN" ? "IN_PROGRESS" : activeRun.status} />
               <span>{quantity(activeRun.results.length, "caso de teste", "casos de teste")}</span>
               {activeRun.status === "COMPLETED" && (
                 <span>
@@ -1436,6 +1457,15 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
                 </span>
               )}
             </div>
+            <RunContextSummary value={activeRun.contextSnapshot} />
+            {(activeRun.scheduledStart || activeRun.scheduledEnd) && <p>Previsão: {activeRun.scheduledStart ? dateTime(activeRun.scheduledStart) : "não informada"} até {activeRun.scheduledEnd ? dateTime(activeRun.scheduledEnd) : "não informada"}</p>}
+            {activeRun.notes && <p>Observações: {activeRun.notes}</p>}
+            {activeRun.entryCriteria && <p>Critérios de entrada: {activeRun.entryCriteria}</p>}
+            {activeRun.exitCriteria && <p>Critérios de saída: {activeRun.exitCriteria}</p>}
+            {["DRAFT", "OPEN"].includes(activeRun.status) && <div className="library-actions">
+              {activeRun.status === "DRAFT" && <Button disabled={busy} onClick={() => void mutate(() => request(`projects/${activeRun.projectId}/runs/${activeRun.id}/start`, { method: "POST", body: "{}" }), "Ciclo iniciado.")}>Iniciar ciclo</Button>}
+              <Button variant="outline" disabled={busy} onClick={() => void mutate(() => request(`projects/${activeRun.projectId}/runs/${activeRun.id}/cancel`, { method: "POST", body: "{}" }), "Ciclo cancelado. Histórico preservado.")}>Cancelar ciclo</Button>
+            </div>}
             {formError && (
               <div className="alert alert-error" role="alert">
                 {formError}
@@ -1445,7 +1475,7 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
               <ResultEditor
                 key={`${result.id}-${result.status}-${result.notes}-${activeRun.status}`}
                 result={result}
-                disabled={activeRun.status === "COMPLETED" || busy}
+                disabled={activeRun.status !== "OPEN" || busy || activeRun.source !== "MANUAL"}
                 onSave={async (values) => {
                   await mutate(
                     () =>
@@ -1705,6 +1735,7 @@ function RunRow({ run, onClick }: { run: Run; onClick: () => void }) {
       </span>
       <span className="run-row-title">
         <strong>{run.name}</strong>
+        <RunContextSummary value={run.contextSnapshot} />
         <small>
           {date(run.createdAt)} · {run.results?.length ?? 0} casos ·{" "}
           {labels[run.source]}
@@ -1717,7 +1748,7 @@ function RunRow({ run, onClick }: { run: Run; onClick: () => void }) {
           }}
         />
       </span>
-      <Badge value={run.status} />
+      <Badge value={run.status === "OPEN" ? "IN_PROGRESS" : run.status} />
       <ChevronRight size={16} />
     </button>
   );
@@ -1928,7 +1959,7 @@ function BugFields({ bug, runs }: { bug?: Bug; runs: Run[] }) {
           {runs.flatMap((run) =>
             run.results.map((result) => (
               <option value={result.id} key={result.id}>
-                {run.name} · {result.caseTitle} ({labels[result.status]})
+                {run.name}{run.contextSnapshot?.build ? ` · build ${run.contextSnapshot.build}` : ""}{run.contextSnapshot?.release ? ` · versão ${run.contextSnapshot.release.version}` : ""}{run.contextSnapshot?.environment ? ` · ${run.contextSnapshot.environment.name}` : ""} · {result.caseTitle} ({labels[result.status]})
               </option>
             )),
           )}
@@ -1956,6 +1987,7 @@ function ResultEditor({
         <h3>{result.caseTitle}</h3>
         <Badge value={result.status} />
       </div>
+      {result.category && <p>Categoria: {result.category}</p>}
       {result.caseSnapshot.gherkinSource && <details><summary>Fonte Gherkin da execução</summary><GherkinSource source={result.caseSnapshot.gherkinSource} /></details>}
       {result.caseSnapshot && (
         <details>
