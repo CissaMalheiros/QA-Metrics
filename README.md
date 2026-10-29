@@ -2,7 +2,7 @@
 
 Aplicação web local para gerenciar projetos de QA de diferentes clientes. Inclui autenticação por email e senha, workspace pessoal, projetos, casos de teste, ciclos manuais, bugs, dashboards e importação de resultados JUnit XML. A interface está em português do Brasil.
 
-Os documentos de referência estão em `PLANO_MVP.md`, `AGENTS.md` e `PROMPTS_CODEX.md`. O projeto usa Next.js App Router, TypeScript, Tailwind, PostgreSQL, Prisma 7, Better Auth, Zod, Vitest e Playwright. Não requer serviços pagos ou publicação na nuvem.
+O projeto usa Next.js App Router, TypeScript, Tailwind, PostgreSQL, Prisma 7, Better Auth, Zod, Vitest e Playwright. Não requer serviços pagos ou publicação na nuvem.
 
 ## Requisitos
 
@@ -96,8 +96,6 @@ Cada resultado guarda título e snapshot do caso no momento da criação do cicl
 - A gravação do ciclo e de seus resultados ocorre em transação. Mensagens importadas são exibidas como texto.
 
 ## Verificações
-
-Os resultados reais da execução local desta entrega estão em [VALIDACAO.md](VALIDACAO.md).
 
 ```powershell
 pnpm lint
