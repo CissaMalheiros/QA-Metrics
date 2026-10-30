@@ -21,7 +21,7 @@ export function assertSameOrigin(request: Request) {
   }
 }
 
-async function readLimitedBody(
+export async function readLimitedBody(
   request: Request,
   maximum: number,
 ): Promise<Uint8Array<ArrayBuffer>> {

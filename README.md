@@ -213,3 +213,5 @@ A execução manual oferece modo guiado, filtros de resultados, rascunhos salvos
 Este MVP não inclui execução remota de testes, ingestão por API pública, integrações Jira/GitHub, colaboração avançada, IA, anexos de vídeo ou cobrança. A importação manual de XML funciona sem essas integrações.
 
 Documentação consultada para a configuração: [Prisma 7](https://www.prisma.io/docs/guides/upgrade-prisma-orm/v7), [Better Auth com Prisma](https://better-auth.com/docs/adapters/prisma), [Better Auth com Next.js](https://better-auth.com/docs/integrations/next) e [instalação do Next.js](https://nextjs.org/docs/app/getting-started/installation).
+
+Evidências ficam privadas no PostgreSQL, incluídas no backup do banco, e são servidas somente como download autenticado. Formatos: PNG/JPEG/PDF/TXT/LOG; 5 MiB por arquivo, 25 MiB e 100 arquivos por projeto. Em Bugs, abra o título para acompanhar prioridade/responsável, anexar evidências, marcar correção disponível, criar um novo ciclo de reteste e validar para fechar ou reabrir. O resultado original permanece intacto.

@@ -136,6 +136,7 @@ model Project {
   environments Environment[]
   releases Release[]
   plans TestPlan[]
+  evidence Evidence[]
   @@index([workspaceId])
 }
 model TestCase {
@@ -234,6 +235,8 @@ model TestResult {
   version Int @default(0)
   draft Json?
   events ResultEvent[]
+  evidence Evidence[]
+  retests BugRetest[]
   bugs Bug[]
   @@unique([runId, testCaseId])
   @@unique([id, projectId])
@@ -268,12 +271,50 @@ model Bug {
   description String @default("")
   stepsToReproduce String @default("")
   severity Priority @default(MEDIUM)
+  priority Priority @default(MEDIUM)
+  responsibleId String?
+  expectedResult String @default("")
+  actualResult String @default("")
+  fixedInBuild String @default("")
+  history Json @default("[]")
+  evidence Evidence[]
+  retests BugRetest[]
   status BugStatus @default(OPEN)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@index([projectId, status])
   @@index([testResultId])
   @@unique([projectId, creationKey])
+  @@unique([id, projectId])
+}
+
+model Evidence {
+  id String @id @default(cuid())
+  projectId String
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  bugId String?
+  bug Bug? @relation(fields: [bugId, projectId], references: [id, projectId], onDelete: Restrict)
+  resultId String?
+  result TestResult? @relation(fields: [resultId, projectId], references: [id, projectId], onDelete: Restrict)
+  name String
+  mime String
+  size Int
+  content Bytes
+  sha256 String
+  actorId String
+  createdAt DateTime @default(now())
+  @@index([projectId])
+}
+
+model BugRetest {
+  id String @id @default(cuid())
+  projectId String
+  bugId String
+  bug Bug @relation(fields: [bugId, projectId], references: [id, projectId], onDelete: Restrict)
+  resultId String @unique
+  result TestResult @relation(fields: [resultId, projectId], references: [id, projectId], onDelete: Restrict)
+  completedAt DateTime?
+  createdAt DateTime @default(now())
 }
 
 model AuditLog {

@@ -3,6 +3,34 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 
+test("anexa evidência e reabre defeito após reteste reprovado", async ({ page }) => {
+  await page.goto("/cadastro");
+  await page.getByLabel("Nome", { exact: true }).fill("QA Defeitos");
+  await page.getByLabel("E-mail", { exact: true }).fill(`bugs-${randomUUID()}@example.test`);
+  await page.getByLabel("Senha", { exact: true }).fill(`Qa-${randomUUID()}`);
+  await page.getByRole("button", { name: "Criar conta", exact: true }).click();
+  await expect(page).toHaveURL(/dashboard/);
+  const projectName = `Defeitos ${randomUUID().slice(0, 6)}`;
+  await createProject(page, projectName, "Cliente QA");
+  await page.getByText(projectName, { exact: true }).last().click(); await expect(page).toHaveURL(/project=/);
+  const projectId = new URL(page.url()).searchParams.get("project")!;
+  async function post(path: string, data: unknown, method = "POST") { const response = await page.request.fetch(`/api/data/projects/${projectId}/${path}`, { method, data, headers: { Origin: "http://localhost:3100" } }); expect(response.ok(), await response.text()).toBeTruthy(); return response.json(); }
+  const testCase = (await post("cases", { title: "Compra com erro", steps: ["Comprar"], expectedResult: "Pedido criado" })).testCase;
+  const run = (await post("runs", { name: "Falha original", testCaseIds: [testCase.id] })).run;
+  await post(`runs/${run.id}/results/${run.results[0].id}`, { status: "FAILED", actualResult: "Erro 500" }, "PATCH"); await post(`runs/${run.id}/complete`, {});
+  await post("bugs", { title: "Erro de compra", description: "Falha original", testResultId: run.results[0].id });
+  await page.reload(); await page.getByRole("button", { name: "Bugs", exact: true }).click(); await page.getByRole("button", { name: "Erro de compra", exact: true }).click();
+  let dialog = page.getByRole("dialog");
+  await expect(dialog.getByLabel("Resultado obtido", { exact: true })).toHaveValue("Erro 500");
+  await dialog.getByLabel("Arquivo de evidência", { exact: true }).setInputFiles({ name: "erro.log", mimeType: "text/plain", buffer: Buffer.from("Erro 500 no checkout") });
+  await dialog.getByRole("button", { name: "Anexar evidência", exact: true }).click(); await expect(dialog.getByRole("link", { name: /erro.log/ })).toBeVisible();
+  await dialog.getByLabel("Status do defeito", { exact: true }).selectOption("RESOLVED"); await dialog.getByLabel("Build da correção", { exact: true }).fill("502"); await dialog.getByRole("button", { name: "Salvar acompanhamento", exact: true }).click();
+  await dialog.getByRole("button", { name: "Novo reteste", exact: true }).click(); await dialog.getByLabel("Build", { exact: true }).fill("502"); await dialog.getByRole("button", { name: "Criar ciclo de reteste", exact: true }).click();
+  dialog = page.getByRole("dialog"); await expect(dialog.getByRole("heading", { name: "Reteste: Erro de compra", exact: true })).toBeVisible();
+  await dialog.getByLabel("Resultado de Compra com erro", { exact: true }).selectOption("FAILED"); await dialog.getByRole("button", { name: "Salvar resultado", exact: true }).click(); await dialog.getByRole("button", { name: "Encerrar ciclo", exact: true }).click(); await expect(dialog.getByText("Histórico preservado", { exact: true })).toBeVisible(); await dialog.getByRole("button", { name: "Fechar", exact: true }).click();
+  await page.getByRole("button", { name: "Erro de compra", exact: true }).click(); dialog = page.getByRole("dialog"); await dialog.getByRole("button", { name: "Validar ou reabrir", exact: true }).click(); await expect(dialog.getByLabel("Status do defeito", { exact: true })).toHaveValue("OPEN");
+});
+
 test("reutiliza plano em duas builds e preserva revisão, contexto, estados e métricas", async ({ page }) => {
   const identifier = randomUUID().slice(0, 8);
   await page.goto("/cadastro");

@@ -6,6 +6,8 @@ import * as library from "@/server/case-library";
 import * as gherkin from "@/server/gherkin";
 import * as csv from "@/server/csv";
 import * as planning from "@/server/planning";
+import * as workflow from "@/server/bug-workflow";
+import { readLimitedBody } from "@/server/http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -53,7 +55,27 @@ async function handle(
       else if (method === "DELETE")
         result = await service.deleteProject(userId, projectId);
     } else if (collection === "projects" && projectId) {
-      if (resource === "planning" && path.length === 3 && method === "GET") {
+      if (resource === "evidence" && resourceId && path.length === 4 && method === "GET") {
+        const file = await workflow.readEvidence(userId, projectId, resourceId);
+        return new Response(new Uint8Array(file.content), { headers: { "Content-Type": file.mime, "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(file.name)}`, "X-Content-Type-Options": "nosniff", "Cache-Control": "private, no-store", "Content-Security-Policy": "sandbox" } });
+      } else if (resource === "evidence" && resourceId && path.length === 4 && method === "DELETE") {
+        result = await workflow.deleteEvidence(userId, projectId, resourceId);
+      } else if (resource === "evidence" && path.length === 3 && method === "POST") {
+        await service.requireProject(userId, projectId);
+        const bytes = await readLimitedBody(request, workflow.MAX_EVIDENCE_BYTES + 65536);
+        let form: FormData;
+        try { form = await new Response(bytes, { headers: { "Content-Type": request.headers.get("content-type") ?? "" } }).formData(); }
+        catch { throw new ServiceError(400, "Formulário de evidência inválido."); }
+        const file = form.get("file"); if (!(file instanceof File)) throw new ServiceError(400, "Selecione um arquivo.");
+        result = await workflow.saveEvidence(userId, projectId, { name: file.name, content: Buffer.from(await file.arrayBuffer()), bugId: String(form.get("bugId") ?? "") || undefined, resultId: String(form.get("resultId") ?? "") || undefined }); status = 201;
+      } else if (resource === "bugs" && resourceId && action === "workflow" && path.length === 5) {
+        if (method === "GET") result = await workflow.getBugWorkflow(userId, projectId, resourceId);
+        else if (method === "PATCH") result = await workflow.changeBug(userId, projectId, resourceId, await readJson(request));
+      } else if (resource === "bugs" && resourceId && action === "retests" && path.length === 5 && method === "POST") {
+        result = { run: await workflow.createRetest(userId, projectId, resourceId, await readJson(request)) }; status = 201;
+      } else if (resource === "bugs" && resourceId && action === "retests" && actionId && detail === "validate" && path.length === 7 && method === "POST") {
+        result = await workflow.finishRetest(userId, projectId, resourceId, actionId);
+      } else if (resource === "planning" && path.length === 3 && method === "GET") {
         result = await planning.getPlanning(userId, projectId);
       } else if (resource === "plans" && path.length === 3 && method === "GET") {
         result = { plans: await planning.listPlans(userId, projectId) };

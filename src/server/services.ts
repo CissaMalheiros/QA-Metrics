@@ -383,7 +383,7 @@ export async function createRun(
   });
 }
 
-async function resolveRunContext(client: DataClient, projectId: string, data: { environmentId?: string; releaseId?: string; responsibleId?: string; build: string }) {
+export async function resolveRunContext(client: DataClient, projectId: string, data: { environmentId?: string; releaseId?: string; responsibleId?: string; build: string }) {
   const environment = data.environmentId ? await client.environment.findFirst({ where: { id: data.environmentId, projectId, archived: false }, select: { id: true, name: true, baseUrl: true } }) : null;
   const release = data.releaseId ? await client.release.findFirst({ where: { id: data.releaseId, projectId, archived: false }, select: { id: true, name: true, version: true } }) : null;
   const responsible = data.responsibleId ? await client.workspaceMember.findFirst({ where: { userId: data.responsibleId, workspace: { projects: { some: { id: projectId } } } }, select: { user: { select: { id: true, name: true } } } }) : null;
@@ -528,8 +528,9 @@ export async function createBug(
       }
     }
     await validateBugResult(client, projectId, data.testResultId);
+    const linked = data.testResultId ? await client.testResult.findUnique({ where: { id: data.testResultId } }) : null;
     return client.bug.create({
-      data: { ...data, projectId, creationHash: data.creationKey ? hash : undefined },
+      data: { ...data, projectId, creationHash: data.creationKey ? hash : undefined, expectedResult: linked ? String((linked.caseSnapshot as { expectedResult?: string }).expectedResult ?? "") : "", actualResult: linked?.actualResult ?? "", history: [{ at: new Date().toISOString(), actorId: userId, status: data.status, action: "CREATED" }] },
       include: bugInclude,
     });
   });
@@ -548,7 +549,7 @@ export async function updateBug(
     await validateBugResult(client, projectId, data.testResultId);
     return client.bug.update({
       where: { id: bugId },
-      data,
+      data: { ...data, history: [...(Array.isArray(bug.history) ? bug.history : []), { at: new Date().toISOString(), actorId: userId, before: { status: bug.status, title: bug.title, description: bug.description, severity: bug.severity, stepsToReproduce: bug.stepsToReproduce, testResultId: bug.testResultId }, changes: data }] as Prisma.InputJsonArray },
       include: bugInclude,
     });
   });

@@ -38,6 +38,7 @@ it("aplica a migração de auditoria sobre o MVP sem alterar registros históric
     expect((await client.query('SELECT row_to_json(r)::jsonb - \'position\' - \'category\' AS value FROM "TestResult" r')).rows).toEqual(before);
     await client.query(readFileSync("prisma/migrations/202610290008_manual_execution/migration.sql", "utf8"));
     await client.query(readFileSync("prisma/migrations/202610290009_run_idempotency/migration.sql", "utf8"));
+    await client.query(readFileSync("prisma/migrations/202610290010_bug_workflow/migration.sql", "utf8"));
     expect((await client.query('SELECT "snapshot" FROM "ResultEvent" WHERE "resultId" = $1', ['x'])).rows[0].snapshot).toMatchObject({ status: "FAILED", notes: "", executedAt: null });
     expect((await client.query('SELECT "caseSnapshot" FROM "TestResult" WHERE id = $1', ['x'])).rows[0].caseSnapshot).toEqual(before[0].value.caseSnapshot);
   } finally {

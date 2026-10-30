@@ -47,6 +47,7 @@ import { Field } from "@/components/ui/field";
 import { request } from "@/lib/api-client";
 import { CaseLibrary } from "@/components/case-library";
 import { ExecutionResults, type ExecutionResult as Result } from "@/components/execution-results";
+import { BugWorkflow } from "@/components/bug-workflow";
 import { ProjectContext } from "@/components/project-context";
 import { TestPlans } from "@/components/test-plans";
 import { RunContextFields, RunContextSummary, runFormData, type RunContext } from "@/components/run-context";
@@ -284,6 +285,7 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
     setFilters((current) => ({ ...current, [tab]: value }));
   }
   const [runFilter, setRunFilter] = useState("latest");
+  const [workflowBug, setWorkflowBug] = useState<string | null>(null);
   const [dirtyResults, setDirtyResults] = useState<string[]>([]);
   const [contextBug, setContextBug] = useState<Partial<Bug> | null>(null);
   const [bugCreationKey, setBugCreationKey] = useState("");
@@ -1176,7 +1178,7 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
                                   <td>
                                     <button
                                       className="table-title"
-                                      onClick={() => openEditor("bug", b)}
+                                      onClick={() => setWorkflowBug(b.id)}
                                     >
                                       <BugIcon size={16} />
                                       {b.title}
@@ -1417,6 +1419,9 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
           </div>
         )}
       </Dialog>
+      {workflowBug && projectId && <BugWorkflow projectId={projectId} bugId={workflowBug} onClose={() => setWorkflowBug(null)} onChanged={refreshAfterSave} onRun={id => {
+        void request<{ run: Run }>(`projects/${projectId}/runs/${id}`).then(value => { setWorkflowBug(null); setActiveRun(value.run); }).catch(reason => setFormError(reason.message));
+      }} />}
       <Dialog
         open={!!activeRun}
         onOpenChange={(open) => {

@@ -13,13 +13,13 @@ Estado inicial: `3c9b3b4`, árvore limpa. Reutilizar Node 24 e pnpm em `.tools/n
 | 9 | Concluída e validada | Organização, revisões, BDD/feature e CSV com frontend/backend/banco/testes |
 | 10 | Concluída e validada | Planos reutilizáveis, versões, builds e ambientes |
 | 11 | Concluída e validada | Execução guiada, rascunhos, autoria, duração e fluxo contextual de defeito |
-| 12 | Não iniciada | Defeitos, retestes e evidências privadas |
-| 13 | Não iniciada | Requisitos e rastreabilidade |
+| 12 | Concluída e validada | Defeitos, retestes e evidências privadas |
+| 13 | Adiada pelo usuário | Requisitos e rastreabilidade |
 | 14 | Não iniciada | Tokens por projeto, ingestão idempotente, Jenkins/GitHub Actions e vínculos BDD |
 | 15 | Não iniciada | Meu dia, indicadores contextualizados e visão de release |
-| 16 | Não iniciada | Convites, papéis, atribuições e comentários |
-| 17 | Não iniciada | Operação, segurança, quotas, desempenho e backup/restore exercitado |
-| 18 | Não iniciada | Jornadas reais completas, Jenkins real, restauração e release validada |
+| 16 | Adiada pelo usuário | Convites, papéis, atribuições e comentários |
+| 17 | Adiada pelo usuário | Operação, segurança, quotas, desempenho e backup/restore exercitado |
+| 18 | Adiada pelo usuário | Jornadas reais completas, Jenkins real, restauração e release validada |
 
 ## Auditoria de partida (fases 0–7)
 
@@ -104,3 +104,7 @@ Priorizar funcionalidades prontas, sem obrigação de fragmentar em pequenas ent
 - Ajustes de compatibilidade validados: edição apenas de notas conserva horário/executor; NOT_RUN não alega execução; encerramento exige resolver rascunhos. UI impede encerrar/fechar/navegar com alterações não salvas; descarte explícito mantém resultado anterior.
 - Foram corrigidos uma corrida ao abrir histórico durante gravação e os waits do E2E para aguardar encerramento real. O teste antigo passou a descartar explicitamente uma mudança não salva antes de encerrar, mantendo a verificação de resultado anterior preservado.
 - Continuidade: implementar todas as funcionalidades da Fase 12 (prioridade/responsável/esperado-obtido, correção disponível, histórico/comentários, retestes, relações e evidências privadas), depois 13–18 em ordem. Nenhum push. Banco original Docker ainda não migrado; permanece a limitação já registrada.
+
+## Escopo prioritário atualizado
+Implementar somente 12 → 14 → 15. Fases 13 e 16–18 adiadas explicitamente. Fase 11 commit d990cba.
+Fase 12: evidências privadas em bytea no PostgreSQL (sem arquivos executáveis/public), validação de formato/extensão/tamanho, quotas e remoção autorizada; associação a bug/resultado; prioridade/responsável/esperado-obtido/correção/histórico; retestes independentes com snapshot original, aprovação fecha e reprovação reabre. Migração 010 aplicada somente na base isolada. Dois testes de integração do fluxo + migração passaram; E2E real de upload/correção/reteste/reabertura passou; lint direcionado e build verificados. Próxima ação: Fase 14, ingestão autenticada por token e exemplos Jenkins/GitHub Actions; depois Fase 15. Sem push.
