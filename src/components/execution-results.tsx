@@ -74,17 +74,17 @@ function ResultEditor({ result, disabled, guided, onDirty, onSave, onBug }: {
     finally { setSaving(false); }
   }
   return <article className="result-editor">
-    <div className="result-editor-heading"><h3>{result.caseTitle}</h3><span>{statusLabel(stored.status)}{stored.draft ? " · Rascunho salvo" : ""}</span></div>
-    {result.category && <p>Categoria: {result.category}</p>}
-    {result.caseSnapshot.revision && <p>Revisão do caso utilizada: {result.caseSnapshot.revision}</p>}
-    <details open={guided}><summary>Ver passos e resultado esperado</summary>
+    <div className="result-editor-heading"><h3>{result.caseTitle}</h3><span className={`execution-status status-${stored.status.toLowerCase()}`}>{statusLabel(stored.status)}{stored.draft ? " · Rascunho salvo" : ""}</span></div>
+    <div className="result-meta">{result.category && <span>{result.category}</span>}{result.caseSnapshot.revision && <span>Revisão {result.caseSnapshot.revision}</span>}</div>
+    <details open={guided}><summary>Passos e resultado esperado</summary>
       {result.caseSnapshot.preconditions && <p>Pré-condições: {result.caseSnapshot.preconditions}</p>}
       <ol>{result.caseSnapshot.steps?.map((step, index) => <li key={index}>{step}</li>)}</ol>
       <p><strong>Resultado esperado:</strong> {result.caseSnapshot.expectedResult || "Conforme relatório importado."}</p>
     </details>
     {result.caseSnapshot.gherkinSource && <details><summary>Fonte Gherkin da execução</summary><GherkinSource source={result.caseSnapshot.gherkinSource} /></details>}
     {result.errorMessage && <pre className="result-error">{result.errorMessage}</pre>}
-    <fieldset disabled={disabled || saving} className="feature-fields">
+    <fieldset disabled={disabled || saving} className="feature-fields result-fields">
+      <legend>{disabled ? "Resultado · somente leitura" : "Registrar resultado"}</legend>
       <div className="form-grid">
         <Field label="Resultado"><select aria-label={`Resultado de ${result.caseTitle}`} value={values.status} onChange={event => change({ status: event.target.value })}>{Object.entries(resultStatusLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></Field>
         <Field label="Duração (segundos)"><input aria-label={`Duração de ${result.caseTitle}`} type="number" min={0} max={604800} step={0.001} value={values.durationMs === null ? "" : values.durationMs / 1000} onChange={event => change({ durationMs: event.target.value === "" ? null : Math.round(Number(event.target.value) * 1000) })} /></Field>

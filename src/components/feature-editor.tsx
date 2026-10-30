@@ -10,7 +10,10 @@ import { caseCode, caseStateLabels, caseTypeLabels, suitePath, type LibraryCase,
 type Preview = Omit<FeaturePreview, "scenarios"> & { scenarios: (FeaturePreview["scenarios"][number] & { matchedCase: { number: number; title: string } | null })[] };
 const template = "# language: pt\nFuncionalidade: Comportamento do produto\n  Cenário: Validar comportamento\n    Dado que o ambiente está disponível\n    Quando executo a ação\n    Então observo o resultado esperado\n";
 export function GherkinSource({ source }: { source: string }) {
-  return <pre className="gherkin-source" aria-label="Fonte Gherkin com realce"><code>{source.split("\n").map((line, index) => <span key={index} className={/^\s*@/.test(line) ? "gherkin-tag" : /^\s*(?:Feature|Funcionalidade|Scenario|Cenário|Cenario|Esquema|Scenario Outline|Background|Contexto|Examples|Exemplos|Given|Dado|Dada|Quando|When|Then|Então|Entao|And|E|But|Mas|Rule|Regra)\b/.test(line) ? "gherkin-keyword" : ""}>{line}{"\n"}</span>)}</code></pre>;
+  return <pre className="gherkin-source" aria-label="Fonte Gherkin com realce"><code>{source.split("\n").map((line, index) => {
+    const match = /^(\s*)(Scenario Outline|Scenario Template|Esquema do Cenário|Esquema do Cenario|Cenário de Fundo|Feature|Funcionalidade|Scenario|Cenário|Cenario|Esquema|Background|Contexto|Examples|Exemplos|Given|Dados|Dadas|Dado|Dada|Quando|When|Then|Então|Entao|And|E|But|Mas|Rule|Regra|\*)(?=[:\s]|$)(.*)$/.exec(line);
+    return <span key={index}>{match ? <>{match[1]}<span className="gherkin-keyword">{match[2]}</span>{match[3]}</> : line}{"\n"}</span>;
+  })}</code></pre>;
 }
 
 export function FeatureEditor({ projectId, testCase, suites, onClose, onSaved }: {
@@ -51,25 +54,26 @@ export function FeatureEditor({ projectId, testCase, suites, onClose, onSaved }:
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Não foi possível salvar os cenários."); }
     finally { setBusy(false); }
   }
-  return <Dialog open onOpenChange={open => { if (!open && !busy) onClose(); }} title={testCase ? `Editar BDD · ${caseCode(testCase.number)}` : "Criar ou importar cenários BDD"} description="Gherkin descreve o comportamento. Esta ferramenta valida e armazena a especificação; não executa passos nem código." wide>
+  return <Dialog open onOpenChange={open => { if (!open && !busy) onClose(); }} title={testCase ? `Editar BDD · ${caseCode(testCase.number)}` : "Criar ou importar cenários BDD"} description="Gherkin descreve o comportamento. Esta ferramenta valida e armazena a especificação; não executa passos nem código." wide className="import-dialog feature-dialog">
     {error && <p className="alert alert-error" role="alert">{error}</p>}
     <fieldset disabled={busy} className="feature-fields">
+      <div className="import-upload">
       <Field label="Arquivo .feature (UTF-8, até 100 KiB)"><input type="file" accept=".feature,text/plain" onChange={event => {
         const file = event.target.files?.[0]; if (!file) return;
         setPreview(null);
         if (!file.name.toLowerCase().endsWith(".feature") || file.size > 102400) { setError("Selecione um arquivo .feature de até 100 KiB."); return; }
         setBusy(true);
         void file.arrayBuffer().then(bytes => changeSource(new TextDecoder("utf-8", { fatal: true }).decode(bytes))).catch(() => setError("O arquivo precisa estar em UTF-8 válido.")).finally(() => setBusy(false));
-      }} /></Field>
-      <Field label="Fonte Gherkin"><textarea className="feature-input" rows={12} maxLength={102400} value={source} onChange={event => changeSource(event.target.value)} spellCheck={false} /></Field>
+      }} /></Field></div>
+      <Field label="Fonte Gherkin"><textarea className="feature-input" rows={8} maxLength={102400} value={source} onChange={event => changeSource(event.target.value)} spellCheck={false} /></Field>
       <details><summary>Fonte com realce de palavras-chave</summary><GherkinSource source={source} /></details>
       {testCase?.gherkinOriginalSource && testCase.gherkinOriginalSource !== testCase.gherkinSource && <details><summary>Fonte original recebida nesta revisão</summary><GherkinSource source={testCase.gherkinOriginalSource} /></details>}
-      <div className="form-grid">
+      <div className="import-classification"><h3>Organização dos casos</h3><div className="form-grid">
         <Field label="Suíte"><select value={suiteId} onChange={event => setSuiteId(event.target.value)}><option value="__keep">Manter atual; novos sem suíte</option><option value="">Sem suíte</option>{suites.map(suite => <option key={suite.id} value={suite.id}>{suitePath(suite, suites)}</option>)}</select></Field>
         <Field label="Prioridade"><select value={priority} onChange={event => setPriority(event.target.value)}><option value="">Manter atual; novos média</option>{Object.entries({ LOW: "Baixa", MEDIUM: "Média", HIGH: "Alta", CRITICAL: "Crítica" }).map(([key, value]) => <option key={key} value={key}>{value}</option>)}</select></Field>
         <Field label="Tipo"><select value={type} onChange={event => setType(event.target.value)}><option value="">Manter atual; novos funcional</option>{Object.entries(caseTypeLabels).map(([key, value]) => <option key={key} value={key}>{value}</option>)}</select></Field>
         <Field label="Estado"><select value={state} onChange={event => setState(event.target.value)}><option value="">Manter atual; novos prontos</option>{Object.entries(caseStateLabels).map(([key, value]) => <option key={key} value={key}>{value}</option>)}</select></Field>
-      </div>
+      </div></div>
       <Button variant="outline" type="button" onClick={() => void validate()}>Validar e pré-visualizar</Button>
       {preview && <section aria-label="Prévia dos cenários" className="feature-preview"><h3>{preview.name} · {preview.language}</h3>
         <p>{preview.scenarios.length} cenários. Tags @requirement:CHAVE e @automation:CHAVE registram referências opcionais; não comprovam execução ou cobertura.</p>

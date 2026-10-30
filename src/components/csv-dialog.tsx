@@ -45,11 +45,14 @@ export function CSVDialog({ projectId, onClose, onSaved }: { projectId: string; 
   }}><option value="">Ignorar coluna</option>{headers.map(header => <option key={header} value={header}>{header}</option>)}</select></Field>;
   const essential = ["code", "externalId", "title", "steps", "expectedResult", "priority"] as const;
   const errors = preview?.rows.filter(row => row.errors.length).length ?? 0;
-  return <Dialog open onOpenChange={open => { if (!open && !busy) onClose(); }} title="Importar casos por CSV" description="Mapeie colunas, confira os erros por linha e confirme a importação. Nenhuma linha é gravada enquanto houver erro." wide>
+  return <Dialog open onOpenChange={open => { if (!open && !busy) onClose(); }} title="Importar casos por CSV" description="Mapeie colunas, confira os erros por linha e confirme a importação. Nenhuma linha é gravada enquanto houver erro." wide className="import-dialog csv-dialog">
     {error && <p className="alert alert-error" role="alert">{error}</p>}
     <fieldset disabled={busy} className="feature-fields">
-      <Field label="Arquivo CSV (UTF-8, até 256 KiB)"><input type="file" accept=".csv,text/csv" onChange={event => { const file = event.target.files?.[0]; if (file) void load(file); }} /></Field>
+      <ol className="import-stages" aria-label="Etapas da importação"><li>1. Escolher arquivo</li><li>2. Conferir colunas</li><li>3. Revisar e importar</li></ol>
+      <div className="import-upload"><h3>Comece pelo seu arquivo</h3><p>Use a primeira linha para os nomes das colunas. Você poderá conferir os dados antes de importar.</p>
+      <Field label="Arquivo CSV (UTF-8, até 256 KiB)"><input type="file" accept=".csv,text/csv" onChange={event => { const file = event.target.files?.[0]; if (file) void load(file); }} /></Field></div>
       {!!headers.length && <>
+        <h3>Confira como as colunas serão utilizadas</h3>
         <Field label="Modo de importação"><select value={mode} onChange={event => { setMode(event.target.value); setPreview(null); }}><option value="CREATE">Criar novos casos (não sobrescrever códigos recebidos)</option><option value="UPSERT">Atualizar por código/ID e criar os ausentes</option></select></Field>
         <p>Use identificação externa para reconciliar arquivos de outras ferramentas. Títulos não identificam casos. Suítes ausentes serão criadas; uma falha cancela o lote inteiro.</p>
         <div className="form-grid">{essential.map(field)}</div>
@@ -58,11 +61,11 @@ export function CSVDialog({ projectId, onClose, onSaved }: { projectId: string; 
       </>}
     </fieldset>
     {busy && <p role="status">Processando CSV…</p>}
-    {preview && <section aria-label="Prévia CSV"><h3>{preview.rows.length} registros · {errors} com erro · {preview.newSuites} novas suítes</h3>
+    {preview && <section className="feature-preview" aria-label="Prévia CSV"><h3>{preview.rows.length} registros · {errors} com erro · {preview.newSuites} novas suítes</h3>
       {!!errors && <p className="alert alert-error" role="alert">Corrija as linhas indicadas e envie novamente o arquivo. Nenhum caso será alterado.</p>}
       <div className="table-scroll"><table><thead><tr><th>Linha do arquivo</th><th>Ação</th><th>Caso</th><th>Avisos e erros</th></tr></thead><tbody>{preview.rows.slice(page * 50, page * 50 + 50).map(row => <tr key={row.line}><td>{row.line}</td><td>{row.action === "UPDATE" ? "Atualizar" : row.action === "CREATE" ? "Criar" : "Corrigir"}</td><td>{row.code} · {row.title}</td><td>{[...row.errors, ...row.warnings].map((message, index) => <p key={index}>{message}</p>)}</td></tr>)}</tbody></table></div>
       {preview.rows.length > 50 && <nav className="library-actions" aria-label="Páginas da prévia CSV"><Button variant="outline" disabled={!page} onClick={() => setPage(value => value - 1)}>Anterior</Button><span>{page + 1} / {Math.ceil(preview.rows.length / 50)}</span><Button variant="outline" disabled={(page + 1) * 50 >= preview.rows.length} onClick={() => setPage(value => value + 1)}>Próxima</Button></nav>}
     </section>}
-    <div className="form-footer"><Button variant="outline" disabled={busy} onClick={onClose}>Cancelar</Button><Button disabled={busy || !preview?.valid} onClick={() => void save()}>Importar {preview?.rows.length ?? 0} {preview?.rows.length === 1 ? "caso" : "casos"}</Button></div>
+    <div className="form-footer"><Button variant="outline" disabled={busy} onClick={onClose}>Cancelar</Button><Button disabled={busy || !preview?.valid} onClick={() => void save()}>{preview ? `Importar ${preview.rows.length} ${preview.rows.length === 1 ? "caso" : "casos"}` : "Importar casos"}</Button></div>
   </Dialog>;
 }

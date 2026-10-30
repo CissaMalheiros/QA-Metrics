@@ -802,7 +802,7 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
                         </select>
                       </label>
                     </div>
-                    <section aria-label="Contexto dos indicadores">{selectedRuns.map(run => <div key={run.id}><strong>{run.name}</strong><RunContextSummary value={run.contextSnapshot} /></div>)}<small>Rascunhos e ciclos cancelados não entram nos indicadores de execução.</small></section>
+                    <section className="metrics-context" aria-label="Contexto dos indicadores"><div className="metrics-context-grid">{selectedRuns.map(run => <div key={run.id}><strong>{run.name}</strong><RunContextSummary value={run.contextSnapshot} /></div>)}</div><small>Rascunhos e ciclos cancelados não entram nos indicadores de execução.</small></section>
                     <div className="metrics-grid">
                       <MetricCard
                         label={projectId ? "Casos de teste" : "Projetos ativos"}
@@ -1447,6 +1447,7 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
             setActiveRun(null);
           }
         }}
+        className="execution-dialog"
         title={activeRun?.name ?? "Ciclo de teste"}
         description={
           activeRun
@@ -1467,12 +1468,16 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
                 </span>
               )}
             </div>
-            <RunContextSummary value={activeRun.contextSnapshot} />
+            <div className="run-context-card"><RunContextSummary value={activeRun.contextSnapshot} />
+            <details><summary>Planejamento e critérios do ciclo</summary>
+            {!activeRun.scheduledStart && !activeRun.scheduledEnd && !activeRun.notes && !activeRun.entryCriteria && !activeRun.exitCriteria && <p>Nenhuma observação ou critério informado.</p>}
             {(activeRun.scheduledStart || activeRun.scheduledEnd) && <p>Previsão: {activeRun.scheduledStart ? dateTime(activeRun.scheduledStart) : "não informada"} até {activeRun.scheduledEnd ? dateTime(activeRun.scheduledEnd) : "não informada"}</p>}
             {activeRun.notes && <p>Observações: {activeRun.notes}</p>}
             {activeRun.entryCriteria && <p>Critérios de entrada: {activeRun.entryCriteria}</p>}
             {activeRun.exitCriteria && <p>Critérios de saída: {activeRun.exitCriteria}</p>}
-            {["DRAFT", "OPEN"].includes(activeRun.status) && <div className="library-actions">
+            </details></div>
+            {activeRun.status === "DRAFT" && <p className="run-state-notice">Este ciclo ainda não começou. Confira os casos e inicie o ciclo para registrar os resultados.</p>}
+            {["DRAFT", "OPEN"].includes(activeRun.status) && <div className="library-actions run-cycle-actions">
               {activeRun.status === "DRAFT" && <Button disabled={busy} onClick={() => void mutate(() => request(`projects/${activeRun.projectId}/runs/${activeRun.id}/start`, { method: "POST", body: "{}" }), "Ciclo iniciado.")}>Iniciar ciclo</Button>}
               <Button variant="outline" disabled={busy || !!dirtyResults.length} onClick={() => void mutate(() => request(`projects/${activeRun.projectId}/runs/${activeRun.id}/cancel`, { method: "POST", body: "{}" }), "Ciclo cancelado. Histórico preservado.")}>Cancelar ciclo</Button>
             </div>}

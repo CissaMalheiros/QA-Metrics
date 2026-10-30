@@ -70,7 +70,7 @@ export function CaseLibrary({ projectId, version, onCreate, onEdit, onDetail, on
       <div className="library-actions"><Button variant="outline" onClick={() => { setSuiteEditor(true); setError(""); }}>Gerenciar suítes</Button><Button variant="outline" onClick={() => setFeature({})}>BDD / .feature</Button><Button variant="outline" onClick={() => setCSV(true)}>Importar CSV</Button><Button variant="outline" disabled={busy} onClick={() => void downloadCSV()}>Exportar CSV dos filtros</Button><Button onClick={onCreate}>Novo caso</Button></div>
     </div>
     {error && <p className="alert alert-error" role="alert">{error} <button onClick={() => setReload(value => value + 1)}>Tentar novamente</button></p>}
-    {notice && <p role="status">{notice}</p>}
+    {notice && <p className="library-notice" role="status">{notice}</p>}
     <div className="library-search"><Field label="Buscar registros"><input aria-label="Buscar registros" value={query.q} onChange={event => filter("q", event.target.value)} placeholder="Código, título, passos ou conteúdo" /></Field>
       <Field label="Prioridade"><select aria-label="Filtrar por prioridade" value={query.priority} onChange={event => filter("priority", event.target.value)}><option value="">Todas as prioridades</option>{Object.entries(priorityLabels).map(([key, value]) => <option key={key} value={key}>{value}</option>)}</select></Field>
     </div>
@@ -89,8 +89,8 @@ export function CaseLibrary({ projectId, version, onCreate, onEdit, onDetail, on
     </tr></thead><tbody>{data.cases.map(value => <tr key={value.id}>
       <td><input type="checkbox" aria-label={`Selecionar ${caseCode(value.number)}`} checked={selected.includes(value.id)} onChange={event => setSelected(current => event.target.checked ? [...current, value.id] : current.filter(id => id !== value.id))} /></td>
       <td><button className="table-title" onClick={() => onDetail(value)}><span className="case-number">{caseCode(value.number)}</span>{value.title}</button><small>Revisão {value.revision} · {value.origin === "JUNIT" ? "JUnit" : value.origin === "GHERKIN" ? "Gherkin" : value.origin === "CSV" ? "CSV" : "Manual"}{value.format === "BDD" ? " · BDD especificado" : ""}</small></td>
-      <td>{priorityLabels[value.priority]} · {caseTypeLabels[value.type]}<br />{caseStateLabels[value.state]}</td>
-      <td>{suites.find(suite => suite.id === value.suiteId)?.name ?? "Sem suíte"}<small>{value.tags.map(tag => `@${tag}`).join(" ") || "Sem tags"}</small></td>
+      <td><span className={`case-priority priority-${value.priority.toLowerCase()}`}>{priorityLabels[value.priority]}</span><small>{caseTypeLabels[value.type]} · {caseStateLabels[value.state]}</small></td>
+      <td>{suites.find(suite => suite.id === value.suiteId)?.name ?? "Sem suíte"}<div className="case-tags">{value.tags.length ? value.tags.map(tag => <span className="case-tag" key={tag}>@{tag}</span>) : <span className="case-no-tags">Sem tags</span>}</div></td>
       <td><div className="library-row-actions">
         <button aria-label={`Editar ${value.title}`} onClick={() => value.format === "BDD" ? setFeature({ testCase: value }) : onEdit(value)}>Editar</button>
         {value.format === "BDD" && <a href={`/api/data/projects/${projectId}/features/${value.id}/export`} download>Exportar .feature</a>}

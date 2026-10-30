@@ -57,7 +57,7 @@ export function TestPlans({ projectId, cases, onChanged }: { projectId: string; 
       <Button aria-label={`Clonar ${plan.name}`} variant="outline" disabled={busy} onClick={() => void write(() => request(`projects/${projectId}/plans/${plan.id}/clone`, { method: "POST", body: "{}" }), "Plano clonado com as mesmas revisões.")}>Clonar</Button>
       <Button aria-label={`Executar ${plan.name}`} disabled={busy || plan.archived || !plan.items.length} onClick={() => { setLaunch(plan); setError(""); }}>Executar</Button>
     </div></article>)}
-    <Dialog open={!!editor} onOpenChange={open => { if (!open && !busy) setEditor(null); }} title={editor?.plan ? "Editar plano" : "Novo plano"} description="As revisões selecionadas ficam fixadas. Atualize uma revisão explicitamente quando desejar." wide>
+    <Dialog open={!!editor} onOpenChange={open => { if (!open && !busy) setEditor(null); }} className="plan-dialog" title={editor?.plan ? "Editar plano" : "Novo plano"} description="As revisões selecionadas ficam fixadas. Atualize uma revisão explicitamente quando desejar." wide>
       <form className="form-stack" key={editor?.plan?.id ?? "new"} onSubmit={event => {
         event.preventDefault(); if (!editor) return;
         const data = new FormData(event.currentTarget);
@@ -67,14 +67,14 @@ export function TestPlans({ projectId, cases, onChanged }: { projectId: string; 
         <Field label="Nome do plano"><input name="name" required maxLength={120} defaultValue={editor?.plan?.name} /></Field>
         <Field label="Objetivo do plano"><textarea name="description" maxLength={5000} defaultValue={editor?.plan?.description} /></Field>
         <Field label="Plano arquivado"><input name="archived" type="checkbox" defaultChecked={editor?.plan?.archived} /></Field>
-        <p>Templates adicionam casos reais sem remover a seleção atual: Smoke usa @smoke; Regressão usa casos prontos; Homologação usa casos funcionais prontos.</p>
-        <div className="library-actions">{["Smoke", "Regressão", "Homologação"].map(template => <Button type="button" variant="outline" key={template} onClick={() => add(available.filter(value => template === "Smoke" ? value.tags.includes("smoke") : value.state === "READY" && (template === "Regressão" || value.type === "FUNCTIONAL")))}>Adicionar template {template}</Button>)}</div>
+        <section className="plan-templates"><h3>Adicionar um conjunto de casos</h3><p>Templates adicionam casos reais sem remover a seleção atual: Smoke usa @smoke; Regressão usa casos prontos; Homologação usa casos funcionais prontos.</p>
+        <div className="library-actions">{["Smoke", "Regressão", "Homologação"].map(template => <Button type="button" variant="outline" key={template} onClick={() => add(available.filter(value => template === "Smoke" ? value.tags.includes("smoke") : value.state === "READY" && (template === "Regressão" || value.type === "FUNCTIONAL")))}>Adicionar template {template}</Button>)}</div></section>
         <h3>Casos selecionados ({editor?.items.length ?? 0})</h3>
         <ol className="plan-items">{editor?.items.map((item, index) => {
           const current = cases.find(value => value.id === item.testCaseId);
           const title = item.caseSnapshot?.title ?? current?.title ?? item.testCaseId;
           return <li key={item.testCaseId}><strong>{caseCode(item.caseSnapshot?.number ?? current?.number ?? 0)} · {title} · revisão {item.revision}</strong>
-            <Field label={`Categoria de ${title}`}><input maxLength={120} value={item.category} onChange={event => setEditor(value => value && ({ ...value, items: value.items.map((row, position) => position === index ? { ...row, category: event.target.value } : row) }))} /></Field>
+            <Field label="Categoria"><input aria-label={`Categoria de ${title}`} maxLength={120} value={item.category} onChange={event => setEditor(value => value && ({ ...value, items: value.items.map((row, position) => position === index ? { ...row, category: event.target.value } : row) }))} /></Field>
             <div className="library-row-actions"><Button aria-label={`Subir ${title}`} type="button" variant="outline" disabled={index === 0} onClick={() => move(index, -1)}>Subir</Button><Button aria-label={`Descer ${title}`} type="button" variant="outline" disabled={index === editor.items.length - 1} onClick={() => move(index, 1)}>Descer</Button>
               <Button aria-label={`Remover ${title}`} type="button" variant="ghost" onClick={() => setEditor(value => value && ({ ...value, items: value.items.filter(row => row.testCaseId !== item.testCaseId) }))}>Remover</Button>
               {current && current.revision !== item.revision && <Button type="button" variant="outline" onClick={() => setEditor(value => value && ({ ...value, items: value.items.map(row => row.testCaseId === item.testCaseId ? { ...row, revision: current.revision, caseSnapshot: { title: current.title, number: current.number } } : row) }))}>Usar revisão {current.revision} de {title}</Button>}
