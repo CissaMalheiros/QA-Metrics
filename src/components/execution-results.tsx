@@ -34,7 +34,7 @@ export function ExecutionResults({ results, disabled, dirty, onDirty, onSave, on
   const visible = results.filter(value => !filter || value.status === filter);
   const index = Math.max(0, visible.findIndex(value => value.id === selected));
   const executed = results.filter(value => value.status !== "NOT_RUN").length;
-  return <section aria-label="Execução dos casos">
+  return <section className="execution-results" aria-label="Execução dos casos">
     <div className="library-actions"><Button variant="outline" disabled={!!dirty.length} onClick={() => setGuided(value => !value)}>{guided ? "Mostrar todos os casos" : "Modo guiado"}</Button>
       <Field label="Filtrar resultados"><select disabled={!!dirty.length} value={filter} onChange={event => { setFilter(event.target.value); setSelected(""); }}><option value="">Todos os casos</option>{Object.entries(resultStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>
       <span role="status">{executed} de {results.length} executados · {results.filter(value => value.draft).length} rascunhos</span>

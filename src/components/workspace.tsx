@@ -637,9 +637,7 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
             <strong>
               {projectId
                 ? (currentProject?.name ?? "Projeto")
-                : tab === "projects"
-                  ? "Projetos"
-                  : "Visão geral"}
+                : tabTitle[tab] ?? "Visão geral"}
             </strong>
           </div>
           <div className="topbar-right">
@@ -676,7 +674,7 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
                 <CalendarDays size={16} />
                 {today}
               </span>
-              {!projectId && (
+              {!projectId && tab !== "day" && (
                 <Button onClick={() => openEditor("project")}>
                   <Plus size={17} />
                   Novo projeto

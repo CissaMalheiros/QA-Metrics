@@ -45,7 +45,7 @@ export function TestPlans({ projectId, cases, onChanged }: { projectId: string; 
   }
   const available = cases.filter(value => value.state !== "ARCHIVED").sort((a, b) => a.number - b.number);
   const filtered = available.filter(value => `${caseCode(value.number)} ${value.title}`.toLowerCase().includes(search.toLowerCase()) && (!tag || value.tags.includes(tag.replace(/^@/, "").toLowerCase())));
-  return <section className="panel" aria-label="Planos de teste">
+  return <section className="panel plans-screen" aria-label="Planos de teste">
     <div className="library-heading"><div><h2>Planos de teste</h2><p>Organize casos e reutilize suas revisões em novas execuções.</p></div><Button onClick={() => { setEditor({ items: [] }); setError(""); }}>Novo plano</Button></div>
     {error && <p role="alert" className="alert alert-error">{error} <button onClick={() => void refresh().catch(reason => setError(reason.message))}>Tentar novamente</button></p>}
     {notice && <p role="status">{notice}</p>}
@@ -53,9 +53,9 @@ export function TestPlans({ projectId, cases, onChanged }: { projectId: string; 
     {!plans && !error && <p role="status">Carregando planos…</p>}
     {plans && !plans.filter(value => showArchived || !value.archived).length && <p className="no-results">Crie seu primeiro plano para smoke, regressão ou homologação.</p>}
     {plans?.filter(value => showArchived || !value.archived).map(plan => <article className="context-row" key={plan.id}><div><h3>{plan.name}</h3><p>{plan.items.length} casos · revisão {plan.revision}{plan.archived ? " · Arquivado" : ""}</p><p>{plan.description}</p></div><div className="library-row-actions">
-      <Button variant="outline" disabled={busy} onClick={() => { setError(""); setEditor({ plan, items: plan.items }); }}>Editar {plan.name}</Button>
-      <Button variant="outline" disabled={busy} onClick={() => void write(() => request(`projects/${projectId}/plans/${plan.id}/clone`, { method: "POST", body: "{}" }), "Plano clonado com as mesmas revisões.")}>Clonar {plan.name}</Button>
-      <Button disabled={busy || plan.archived || !plan.items.length} onClick={() => { setLaunch(plan); setError(""); }}>Executar {plan.name}</Button>
+      <Button aria-label={`Editar ${plan.name}`} variant="outline" disabled={busy} onClick={() => { setError(""); setEditor({ plan, items: plan.items }); }}>Editar</Button>
+      <Button aria-label={`Clonar ${plan.name}`} variant="outline" disabled={busy} onClick={() => void write(() => request(`projects/${projectId}/plans/${plan.id}/clone`, { method: "POST", body: "{}" }), "Plano clonado com as mesmas revisões.")}>Clonar</Button>
+      <Button aria-label={`Executar ${plan.name}`} disabled={busy || plan.archived || !plan.items.length} onClick={() => { setLaunch(plan); setError(""); }}>Executar</Button>
     </div></article>)}
     <Dialog open={!!editor} onOpenChange={open => { if (!open && !busy) setEditor(null); }} title={editor?.plan ? "Editar plano" : "Novo plano"} description="As revisões selecionadas ficam fixadas. Atualize uma revisão explicitamente quando desejar." wide>
       <form className="form-stack" key={editor?.plan?.id ?? "new"} onSubmit={event => {
@@ -75,8 +75,8 @@ export function TestPlans({ projectId, cases, onChanged }: { projectId: string; 
           const title = item.caseSnapshot?.title ?? current?.title ?? item.testCaseId;
           return <li key={item.testCaseId}><strong>{caseCode(item.caseSnapshot?.number ?? current?.number ?? 0)} · {title} · revisão {item.revision}</strong>
             <Field label={`Categoria de ${title}`}><input maxLength={120} value={item.category} onChange={event => setEditor(value => value && ({ ...value, items: value.items.map((row, position) => position === index ? { ...row, category: event.target.value } : row) }))} /></Field>
-            <div className="library-row-actions"><Button type="button" variant="outline" disabled={index === 0} onClick={() => move(index, -1)}>Subir {title}</Button><Button type="button" variant="outline" disabled={index === editor.items.length - 1} onClick={() => move(index, 1)}>Descer {title}</Button>
-              <Button type="button" variant="ghost" onClick={() => setEditor(value => value && ({ ...value, items: value.items.filter(row => row.testCaseId !== item.testCaseId) }))}>Remover {title}</Button>
+            <div className="library-row-actions"><Button aria-label={`Subir ${title}`} type="button" variant="outline" disabled={index === 0} onClick={() => move(index, -1)}>Subir</Button><Button aria-label={`Descer ${title}`} type="button" variant="outline" disabled={index === editor.items.length - 1} onClick={() => move(index, 1)}>Descer</Button>
+              <Button aria-label={`Remover ${title}`} type="button" variant="ghost" onClick={() => setEditor(value => value && ({ ...value, items: value.items.filter(row => row.testCaseId !== item.testCaseId) }))}>Remover</Button>
               {current && current.revision !== item.revision && <Button type="button" variant="outline" onClick={() => setEditor(value => value && ({ ...value, items: value.items.map(row => row.testCaseId === item.testCaseId ? { ...row, revision: current.revision, caseSnapshot: { title: current.title, number: current.number } } : row) }))}>Usar revisão {current.revision} de {title}</Button>}
             </div></li>;
         })}</ol>

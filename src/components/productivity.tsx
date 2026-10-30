@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { ClipboardList, RotateCcw, CircleAlert, ShieldAlert, Play, ArrowUpRight, CheckCircle2, type LucideIcon } from "lucide-react";
 import { request } from "@/lib/api-client";
 import { Field } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
@@ -11,13 +12,41 @@ type Day = Awaited<ReturnType<typeof myDay>>;
 type Quality = Awaited<ReturnType<typeof projectQuality>>;
 const activityLink = (projectId: string, runId?: string, bugId?: string, resultId?: string) => `/dashboard?${new URLSearchParams({ project: projectId, tab: bugId ? "bugs" : "runs", ...(runId ? { run: runId } : {}), ...(bugId ? { bug: bugId } : {}), ...(resultId ? { result: resultId } : {}) })}`;
 const rate = (value: number | null) => value === null ? "Sem resultados definidos" : `${Math.round(value)}%`;
+type Activity = Day["pending"][number] | Day["retests"][number] | Day["cycles"][number];
+function ActivityGroup({ id, title, values, description, icon: Icon }: { id: string; title: string; values: Activity[]; description: string; icon: LucideIcon }) {
+  const [page, setPage] = useState(0);
+  const pages = Math.ceil(values.length / 5);
+  const current = Math.min(page, Math.max(0, pages - 1));
+  return <section className="panel day-group" id={id} aria-label={title}>
+    <div className="panel-header"><div><h3 aria-label={`${title} (${values.length})`}><Icon size={17} aria-hidden="true" />{title} <span className="day-count">{values.length}</span></h3><p>{description}</p></div></div>
+    {!values.length ? <p className="day-empty"><CheckCircle2 size={18} aria-hidden="true" />Tudo em dia por aqui. Nenhuma atividade neste grupo.</p> : <ul className="day-activities">{values.slice(current * 5, current * 5 + 5).map((value, index) => {
+      const context = value.contextSnapshot as RunContext | undefined;
+      return <li key={index}><Link className="day-activity-link" href={activityLink(value.projectId, "runId" in value ? value.runId : undefined, "bugId" in value ? value.bugId : undefined, "resultId" in value ? value.resultId : undefined)}><span>{value.title}</span><ArrowUpRight size={15} aria-hidden="true" /></Link>
+        <span className="day-project">{value.projectName}</span>
+        <span className="day-context">{[context?.environment?.name, context?.release?.version && `Versão ${context.release.version}`, context?.build && `Build ${context.build}`].filter(Boolean).join(" · ")}</span>
+        {"executed" in value && <div className="day-cycle-progress"><progress aria-label={`Progresso de ${value.title}`} max={value.total || 1} value={value.executed} /><span>{value.executed}/{value.total} executados</span></div>}
+      </li>;
+    })}</ul>}
+    {pages > 1 && <nav className="day-pagination" aria-label={`Paginação de ${title}`}><Button size="sm" variant="outline" disabled={!current} onClick={() => setPage(current - 1)}>Anterior</Button><span aria-live="polite">{current + 1} de {pages}</span><Button size="sm" variant="outline" disabled={current + 1 >= pages} onClick={() => setPage(current + 1)}>Próxima</Button></nav>}
+  </section>;
+}
 export function MyDay() {
   const [data, setData] = useState<Day | null>(null), [error, setError] = useState(""), [reload, setReload] = useState(0);
+  const [project, setProject] = useState("");
   useEffect(() => { let alive = true; request<Day>("my-day").then(value => { if (alive) { setData(value); setError(""); } }).catch(reason => { if (alive) setError(reason.message); }); return () => { alive = false; }; }, [reload]);
-  return <section aria-label="Meu dia"><div className="library-heading"><h2>Meu dia</h2><Button variant="outline" onClick={() => setReload(value => value + 1)}>Atualizar atividades</Button></div>{error && <p role="alert">{error}</p>}{!data && !error && <p role="status">Carregando atividades…</p>}
-    {data && <><p>Todos os projetos acessíveis · Atualizado em {new Date(data.generatedAt).toLocaleString("pt-BR")}</p><div className="context-panels">
-      {([ ["Pendências de testes", data.pending], ["Bugs aguardando reteste", data.retests], ["Ciclos em andamento ou rascunho", data.cycles], ["Testes bloqueados", data.blocked], ["Falhas automatizadas recentes (7 dias)", data.failures] ] as const).map(([title, values]) => <section className="panel" key={title}><h3>{title} ({values.length})</h3>{!values.length && <p>Nenhuma atividade neste grupo.</p>}{values.map((value, index) => <div className="context-row" key={index}><div><Link href={activityLink(value.projectId, "runId" in value ? value.runId : undefined, "bugId" in value ? value.bugId : undefined, "resultId" in value ? value.resultId : undefined)}>{value.title}</Link><p>{value.projectName}</p><RunContextSummary value={value.contextSnapshot as RunContext} />{"executed" in value && <p>{value.executed}/{value.total} executados</p>}</div></div>)}</section>)}
-    </div></>}
+  const projects = data ? [...new Map([...data.pending, ...data.retests, ...data.cycles, ...data.blocked, ...data.failures].map(value => [value.projectId, value.projectName])).entries()] : [];
+  const select = <T extends Activity>(values: T[]) => values.filter(value => !project || value.projectId === project);
+  const groups = data ? [
+    { id: "day-pending", title: "Pendências de testes", values: select(data.pending), icon: ClipboardList, description: "Retome os casos que ainda precisam de execução.", hint: "Continuar os testes", tone: "pending" },
+    { id: "day-retests", title: "Bugs aguardando reteste", values: select(data.retests), icon: RotateCcw, description: "Correções prontas para você conferir.", hint: "Validar correções", tone: "retests" },
+    { id: "day-failures", title: "Falhas automatizadas recentes (7 dias)", values: select(data.failures), icon: CircleAlert, description: "Investigue o que falhou nas últimas automações.", hint: "Investigar falhas", tone: "failures" },
+    { id: "day-blocked", title: "Testes bloqueados", values: select(data.blocked), icon: ShieldAlert, description: "Identifique o que falta para seguir em frente.", hint: "Revisar bloqueios", tone: "blocked" },
+    { id: "day-cycles", title: "Ciclos em andamento ou rascunho", values: select(data.cycles), icon: Play, description: "Acompanhe as rodadas abertas e planejadas.", hint: "Acompanhar ciclos", tone: "cycles" },
+  ] : [];
+  return <section className="day-screen" aria-label="Meu dia">
+    <div className="day-toolbar"><div><h2>Sua agenda de qualidade</h2><p>{data ? `Atualizado em ${new Date(data.generatedAt).toLocaleString("pt-BR")}` : "Pendências dos seus projetos acessíveis"}</p></div><div className="day-toolbar-actions"><Field label="Filtrar atividades por projeto"><select value={project} onChange={event => setProject(event.target.value)}><option value="">Todos os projetos</option>{projects.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></Field><Button variant="outline" onClick={() => setReload(value => value + 1)}>Atualizar atividades</Button></div></div>
+    {error && <p className="alert alert-error" role="alert">{error}</p>}{!data && !error && <p role="status">Carregando atividades…</p>}
+    {data && <><div className="day-focus"><div><span className="day-focus-label">UM BOM PONTO DE PARTIDA</span><h2>{select(data.retests).length ? "Vamos conferir as correções?" : select(data.pending).length ? "Vamos dar continuidade aos testes?" : "Tudo pronto para o próximo passo."}</h2><p>{select(data.retests).length ? `${select(data.retests).length} correções aguardam validação${project ? " neste projeto" : " nos seus projetos"}. Confira os retestes e ajude a liberar a próxima entrega.` : "Acompanhe as atividades dos seus projetos e escolha o que faz sentido retomar agora."}</p></div><a className="button button-outline" href={select(data.retests).length ? "#day-retests" : "#day-pending"}>{select(data.retests).length ? "Revisar retestes" : "Ver pendências"}<ArrowUpRight size={16} aria-hidden="true" /></a></div><div className="day-summary">{groups.slice(0,4).map(group => <a className={`metric-card day-metric-${group.tone}`} href={`#${group.id}`} key={group.id}><div className="metric-top"><span>{group.title}</span><group.icon size={18} aria-hidden="true" /></div><strong>{group.values.length}</strong><p>{group.hint}<ArrowUpRight size={13} aria-hidden="true" /></p></a>)}</div><div className="day-grid">{groups.map(group => <ActivityGroup key={`${group.id}-${project}`} {...group} />)}</div></>}
   </section>;
 }
 export function ProjectQuality({ projectId }: { projectId: string }) {
@@ -39,7 +68,7 @@ export function ProjectQuality({ projectId }: { projectId: string }) {
     const url = URL.createObjectURL(new Blob([report], { type: "text/plain;charset=utf-8" })); const link = document.createElement("a"); link.href = url; link.download = "qa-metrics-qualidade.txt"; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
   const labels: Record<string, string> = { ...priorityLabels, ...bugStatusLabels, FUNCTIONAL: "Funcional", API: "API", UI: "Interface", INTEGRATION: "Integração", SECURITY: "Segurança", EXPLORATORY: "Exploratório", DRAFT: "Rascunho", READY: "Pronto", ARCHIVED: "Arquivado" };
-  return <section aria-label="Qualidade do projeto"><h2>Qualidade do projeto e release</h2><div className="library-filters">
+  return <section className="quality-screen" aria-label="Qualidade do projeto"><h2>Qualidade do projeto e release</h2><div className="library-filters">
     <Field label="Ambiente dos indicadores"><select value={query.environmentId} onChange={event => filter("environmentId", event.target.value)}><option value="">Todos</option>{options?.environments.map(value => <option key={value.id} value={value.id}>{value.name}</option>)}</select></Field>
     <Field label="Versão dos indicadores"><select value={query.releaseId} onChange={event => filter("releaseId", event.target.value)}><option value="">Todas</option>{options?.releases.map(value => <option key={value.id} value={value.id}>{value.version}</option>)}</select></Field>
     <Field label="Criado a partir de"><input type="datetime-local" value={query.from} onChange={event => filter("from", event.target.value)} /></Field><Field label="Criado até"><input type="datetime-local" value={query.to} onChange={event => filter("to", event.target.value)} /></Field>

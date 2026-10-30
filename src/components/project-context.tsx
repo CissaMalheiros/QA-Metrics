@@ -47,7 +47,7 @@ export function ProjectContext({ projectId }: { projectId: string }) {
       </section>
     </div>
     <Dialog open={!!editor} onOpenChange={open => { if (!open && !busy) setEditor(null); }} title={`${editor?.value ? "Editar" : "Cadastrar"} ${editor?.kind === "environment" ? "ambiente" : "versão"}`} description="Os dados pertencem somente a este projeto. Arquive registros em vez de apagar seu contexto histórico.">
-      <form onSubmit={save} key={`${editor?.kind}-${editor?.value?.id ?? "new"}`}>
+      <form className="form-stack" onSubmit={save} key={`${editor?.kind}-${editor?.value?.id ?? "new"}`}>
         {error && <p className="alert alert-error" role="alert">{error}</p>}
         <Field label="Nome"><input name="name" required maxLength={120} defaultValue={editor?.value?.name} /></Field>
         {editor?.kind === "environment" ? <Field label="URL do ambiente"><input type="url" name="baseUrl" maxLength={2000} defaultValue={(editor.value as Environment | undefined)?.baseUrl} placeholder="https://qa.exemplo.com" /></Field> : <Field label="Versão"><input name="version" required maxLength={80} defaultValue={(editor?.value as Release | undefined)?.version} placeholder="1.2.0" /></Field>}

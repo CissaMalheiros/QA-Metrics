@@ -10,8 +10,9 @@ export function Field({
   hint?: string;
 }) {
   const id = useId();
+  const checkbox = isValidElement<{ type?: string }>(children) && children.props.type === "checkbox";
   return (
-    <div className="field">
+    <div className={checkbox ? "field field-checkbox" : "field"}>
       <label htmlFor={id}>{label}</label>
       {isValidElement<{ id?: string; "aria-describedby"?: string }>(children)
         ? cloneElement(children, {
