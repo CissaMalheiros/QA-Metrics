@@ -23,7 +23,7 @@ export function runFormData(form: FormData) {
     build: value("build"), notes: value("notes"), entryCriteria: value("entryCriteria"), exitCriteria: value("exitCriteria"), draft: value("draft") === "on",
   };
 }
-export function RunContextFields({ projectId }: { projectId: string }) {
+export function RunContextFields({ projectId, retest = false }: { projectId: string; retest?: boolean }) {
   const [creationKey] = useState(() => crypto.randomUUID());
   const [options, setOptions] = useState<Options | null>(null);
   const [error, setError] = useState("");
@@ -40,6 +40,7 @@ export function RunContextFields({ projectId }: { projectId: string }) {
     <Field label="Ambiente"><select name="environmentId" disabled={!options}><option value="">Não informado</option>{options?.environments.filter(value => !value.archived).map(value => <option key={value.id} value={value.id}>{value.name}</option>)}</select></Field>
     <Field label="Release / versão"><select name="releaseId" disabled={!options}><option value="">Não informada</option>{options?.releases.filter(value => !value.archived).map(value => <option key={value.id} value={value.id}>{value.version} · {value.name}</option>)}</select></Field>
     <Field label="Build"><input name="build" maxLength={120} placeholder="Ex.: 2026.10.29.1 ou hash do commit" /></Field>
+    {!retest && <>
     <Field label="Responsável"><select name="responsibleId" disabled={!options}><option value="">Não atribuído</option>{options?.members.map(value => <option key={value.id} value={value.id}>{value.name}</option>)}</select></Field>
     <Field label="Início previsto"><input name="scheduledStart" type="datetime-local" /></Field>
     <Field label="Fim previsto"><input name="scheduledEnd" type="datetime-local" /></Field>
@@ -47,5 +48,6 @@ export function RunContextFields({ projectId }: { projectId: string }) {
     <Field label="Critérios de entrada"><textarea name="entryCriteria" maxLength={5000} /></Field>
     <Field label="Critérios de saída"><textarea name="exitCriteria" maxLength={5000} /></Field>
     <Field label="Salvar como rascunho"><input name="draft" type="checkbox" /></Field>
+    </>}
   </fieldset>;
 }

@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { request } from "@/lib/api-client";
 import { Dialog } from "@/components/ui/dialog";
+import { resultStatusLabels } from "@/domain/labels";
 import { Field } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { RunContextFields, RunContextSummary, runFormData, type RunContext } from "@/components/run-context";
@@ -37,9 +38,9 @@ export function BugWorkflow({ projectId, bugId, onClose, onChanged, onRun }: { p
       </section>
       <section aria-label="Retestes"><h3>Retestes</h3><Button disabled={busy || data.bug.status !== "RESOLVED" || !data.bug.testResultId} onClick={() => setRetest(value => !value)}>Novo reteste</Button>
         {retest && <form className="form-stack" onSubmit={event => { event.preventDefault(); const values = runFormData(new FormData(event.currentTarget)); void act(async () => { const response = await request<{ run: { id: string } }>(`${base}/retests`, { method: "POST", body: JSON.stringify({ name: values.name, build: values.build, creationKey: values.creationKey, environmentId: values.environmentId, releaseId: values.releaseId }) }); setRetest(false); onRun(response.run.id); }); }}>
-          <Field label="Nome do reteste"><input name="name" required minLength={3} defaultValue={`Reteste: ${data.bug.title}`} /></Field><RunContextFields projectId={projectId} /><p>Informe uma build. Cada reteste cria um novo ciclo com a revisão da falha original.</p><Button disabled={busy}>Criar ciclo de reteste</Button>
+          <Field label="Nome do reteste"><input name="name" required minLength={3} defaultValue={`Reteste: ${data.bug.title}`} /></Field><RunContextFields projectId={projectId} retest /><p>Informe uma build. Cada reteste cria um novo ciclo com a revisão da falha original.</p><Button disabled={busy}>Criar ciclo de reteste</Button>
         </form>}
-        {data.bug.retests.map(value => <div key={value.id} className="context-row"><div><strong>{value.result.run.name}</strong><p>Build {value.result.run.build} · {value.result.status}{value.completedAt ? " · Validado" : ""}</p></div><Button variant="outline" onClick={() => onRun(value.result.runId)}>Abrir execução</Button>{!value.completedAt && <Button disabled={busy} onClick={() => void act(() => request(`${base}/retests/${value.id}/validate`, { method: "POST", body: "{}" }))}>Validar ou reabrir</Button>}</div>)}
+        {data.bug.retests.map(value => <div key={value.id} className="context-row"><div><strong>{value.result.run.name}</strong><p>Build {value.result.run.build} · {resultStatusLabels[value.result.status as keyof typeof resultStatusLabels] ?? value.result.status}{value.completedAt ? " · Validado" : ""}</p></div><Button variant="outline" onClick={() => onRun(value.result.runId)}>Abrir execução</Button>{!value.completedAt && <Button disabled={busy} onClick={() => void act(() => request(`${base}/retests/${value.id}/validate`, { method: "POST", body: "{}" }))}>Validar ou reabrir</Button>}</div>)}
       </section>
       <details><summary>Histórico de alterações ({data.bug.history.length})</summary>{data.bug.history.map((entry, index) => {
         const value = entry as { at?: string; actorName?: string; before?: { status?: string } | string; changes?: Record<string, unknown>; status?: string; comment?: string; retestId?: string };
