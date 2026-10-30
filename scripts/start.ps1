@@ -1,4 +1,4 @@
-param([switch]$Production)
+﻿param([switch]$Production)
 $ErrorActionPreference = 'Stop'
 $projectRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 Set-Location -LiteralPath $projectRoot
@@ -39,8 +39,13 @@ if (-not (Test-Path -LiteralPath (Join-Path $projectRoot 'node_modules\.bin\next
   & $nodeBin $pnpmScript install --frozen-lockfile
   if ($LASTEXITCODE -ne 0) { throw 'Não foi possível instalar as dependências.' }
 }
-& $nodeBin $pnpmScript db:migrate
-if ($LASTEXITCODE -ne 0) { throw 'Não foi possível aplicar as migrações.' }
+$demoMode = & $nodeBin --input-type=module -e "import 'dotenv/config'; process.stdout.write(String(process.env.DEMO_MODE === 'true'))"
+if ($LASTEXITCODE -ne 0) { throw 'Não foi possível ler a configuração do ambiente.' }
+# O bootstrap cria o banco dedicado antes de migrar e popular a demonstração.
+if ($demoMode -ne 'true') {
+  & $nodeBin $pnpmScript db:migrate
+  if ($LASTEXITCODE -ne 0) { throw 'Não foi possível aplicar as migrações.' }
+}
 if ($Production) {
   & $nodeBin $pnpmScript build
   if ($LASTEXITCODE -ne 0) { throw 'A compilação não foi concluída.' }

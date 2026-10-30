@@ -40,6 +40,7 @@ export default defineConfig({
     timeout: 120_000,
     env: {
       DATABASE_URL: testUrl,
+      DEMO_MODE: "false",
       BETTER_AUTH_URL: baseURL,
       BETTER_AUTH_SECRET:
         process.env.BETTER_AUTH_SECRET ?? randomBytes(48).toString("hex"),
