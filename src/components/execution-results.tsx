@@ -75,7 +75,7 @@ function ResultEditor({ result, disabled, guided, onDirty, onSave, onBug }: {
   }
   return <article className="result-editor">
     <div className="result-editor-heading"><h3>{result.caseTitle}</h3><span className={`execution-status status-${stored.status.toLowerCase()}`}>{statusLabel(stored.status)}{stored.draft ? " · Rascunho salvo" : ""}</span></div>
-    <div className="result-meta">{result.category && <span>{result.category}</span>}{result.caseSnapshot.revision && <span>Revisão {result.caseSnapshot.revision}</span>}</div>
+    <div className="result-meta">{result.category && <span>Categoria: {result.category}</span>}{result.caseSnapshot.revision && <span>Revisão {result.caseSnapshot.revision}</span>}</div>
     <details open={guided}><summary>Passos e resultado esperado</summary>
       {result.caseSnapshot.preconditions && <p>Pré-condições: {result.caseSnapshot.preconditions}</p>}
       <ol>{result.caseSnapshot.steps?.map((step, index) => <li key={index}>{step}</li>)}</ol>

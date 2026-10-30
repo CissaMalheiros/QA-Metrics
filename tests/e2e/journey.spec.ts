@@ -26,7 +26,7 @@ test("gera token, recebe JUnit pela API CI, deduplica e revoga", async ({ page }
   const send = () => page.request.post("/api/integrations/junit", { headers: { Authorization: `Bearer ${secret}` }, multipart });
   const first = await send(); expect(first.status(), await first.text()).toBe(201); expect((await (await send()).json()).duplicate).toBe(true);
   await page.getByRole("button", { name: "Ciclos", exact: true }).click(); await expect(page).toHaveURL(/tab=runs/); await page.reload(); await expect(page.getByRole("button", { name: /checkout · 200/ })).toBeVisible();
-  await page.getByRole("button", { name: "Integrações CI/CD", exact: true }).click(); await page.getByRole("button", { name: "Revogar Jenkins E2E", exact: true }).click(); await expect(page.getByRole("button", { name: "Revogar Jenkins E2E", exact: true })).toBeDisabled(); expect((await send()).status()).toBe(401);
+  await page.getByRole("button", { name: "Integrações CI/CD", exact: true }).click(); await page.getByRole("button", { name: "Revogar Jenkins E2E", exact: true }).click(); await expect(page.getByText(/ · Revogado$/)).toBeVisible(); await expect(page.getByRole("button", { name: "Revogar Jenkins E2E", exact: true })).toBeDisabled(); expect((await send()).status()).toBe(401);
 });
 
 test("anexa evidência e reabre defeito após reteste reprovado", async ({ page }) => {

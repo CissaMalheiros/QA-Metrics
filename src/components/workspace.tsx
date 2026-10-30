@@ -48,6 +48,7 @@ import { request } from "@/lib/api-client";
 import { CaseLibrary } from "@/components/case-library";
 import { ExecutionResults, type ExecutionResult as Result } from "@/components/execution-results";
 import { BugWorkflow } from "@/components/bug-workflow";
+import { DEMO_EMAIL } from "@/lib/demo";
 import { IntegrationSettings } from "@/components/integration-settings";
 import { MyDay, ProjectQuality } from "@/components/productivity";
 import { ProjectContext } from "@/components/project-context";
@@ -665,8 +666,8 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
               <p>
                 {projectId
                   ? currentProject?.description ||
-                    "Acompanhe cada teste. Cuide de cada entrega."
-                  : "Tudo o que você precisa para manter a qualidade em dia."}
+                    "Casos de teste, execuções e bugs deste projeto."
+                  : "Acompanhe testes, execuções e bugs dos seus projetos."}
               </p>
             </div>
             <div className="heading-actions">
@@ -1074,7 +1075,7 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
                 )}
                 {tab === "day" && <MyDay />}
                 {tab === "quality" && projectId && <ProjectQuality key={projectId} projectId={projectId} />}
-                {tab === "integrations" && projectId && <IntegrationSettings key={projectId} projectId={projectId} />}
+                {tab === "integrations" && projectId && <IntegrationSettings key={projectId} projectId={projectId} demo={user.email === DEMO_EMAIL} />}
                 {tab === "context" && projectId && <ProjectContext key={projectId} projectId={projectId} />}
                 {tab === "plans" && projectId && <TestPlans key={projectId} projectId={projectId} cases={cases} onChanged={refreshAfterSave} />}
                 {tab === "cases" && projectId && (
@@ -1770,11 +1771,11 @@ function ImportCallout({ onClick }: { onClick: () => void }) {
         <FileCode2 size={25} />
         <Sparkles size={14} />
       </div>
-      <span className="eyebrow">DO SEU PIPELINE PARA CÁ</span>
+      <span className="eyebrow">AUTOMAÇÃO</span>
       <h2>
-        Os testes automatizados
+        Resultados de testes
         <br />
-        também têm seu espaço.
+        automatizados.
       </h2>
       <p>
         Importe relatórios JUnit do Playwright ou Cypress e acompanhe todos os
@@ -2031,7 +2032,7 @@ function ImportPanel({
       <section className="panel">
         <div className="panel-header">
           <div>
-            <h2>Traga seus resultados para cá</h2>
+            <h2>Importar relatório JUnit</h2>
             <p>
               Relatórios JUnit XML do Playwright, Cypress e outras ferramentas.
             </p>
@@ -2102,7 +2103,7 @@ function ImportPanel({
       </section>
       <aside className="import-explainer">
         <span className="eyebrow">COMO FUNCIONA</span>
-        <h2>Do XML ao panorama completo.</h2>
+        <h2>Importação de resultados JUnit</h2>
         {[
           [
             "01",
@@ -2111,12 +2112,12 @@ function ImportPanel({
           ],
           [
             "02",
-            "Cada resultado no seu lugar",
+            "Confira a associação dos casos",
             "Os casos são identificados automaticamente e associados somente a este projeto.",
           ],
           [
             "03",
-            "Histórico pronto para consultar",
+            "Consulte o histórico",
             "Um ciclo encerrado preserva resultados, duração e mensagens de erro.",
           ],
         ].map(([n, title, text]) => (

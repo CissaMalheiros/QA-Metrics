@@ -2531,7 +2531,7 @@ tbody tr:hover {
 /* Recent workspaces share the original dashboard's spacing and surfaces. */
 .day-screen, .quality-screen { display: grid; gap: 22px; min-width: 0; }
 .day-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 18px; }
-.day-toolbar h2, .quality-screen > h2 { font-size: 17px; font-weight: 600; margin: 0; }
+.day-toolbar h2 { font-size: 17px; font-weight: 600; margin: 0; }
 .day-toolbar p { font-size: 12px; color: var(--muted); margin-top: 6px; }
 .day-toolbar-actions { display: flex; align-items: flex-end; gap: 12px; }
 .day-toolbar-actions .field { max-width: 280px; }
@@ -2555,12 +2555,11 @@ tbody tr:hover {
 .day-cycle-progress progress { width: 90px; height: 5px; accent-color: #2c7c68; }
 .day-pagination { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 13px 23px; border-top: 1px solid var(--line); font-size: 12px; color: #71808a; }
 .day-empty { padding: 24px; color: #71808a; font-size: 12px; }
-.quality-screen > .panel, .quality-screen .context-panels > .panel { padding: 22px 23px; }
+.quality-screen > .panel { padding: 22px 23px; }
 .quality-screen h3, .integration-screen h3 { font-size: 14px; font-weight: 600; margin: 0 0 14px; }
 .quality-screen p, .integration-screen p { font-size: 12px; line-height: 1.8; margin: 8px 0; color: #5d6c77; }
 .quality-screen small { display: block; font-size: 12px; color: #71808a; line-height: 1.7; margin: 10px 0; }
 .quality-screen > .library-filters { padding: 20px; border: 1px solid var(--line); border-radius: var(--radius); background: white; gap: 16px; }
-.quality-screen .context-panels { align-items: start; }
 .quality-screen .context-row { padding: 16px 0; }
 .quality-screen .table-scroll { margin-top: 10px; }
 .quality-screen td { vertical-align: top; }
@@ -2595,7 +2594,7 @@ tbody tr:hover {
   .day-pagination { padding: 12px 18px; }
   .day-pagination .button { min-height: 44px; }
   .quality-screen > .library-filters { grid-template-columns: 1fr; }
-  .quality-screen > .panel, .quality-screen .context-panels > .panel, .integration-screen { padding: 18px; }
+  .quality-screen > .panel, .integration-screen { padding: 18px; }
   .plans-screen .context-row { align-items: flex-start; }
   .plans-screen .library-row-actions { width: 100%; }
 }
@@ -2732,7 +2731,6 @@ tbody tr:hover {
 .quality-kpis span { font-size: 13px; color: #63766a; }
 .quality-kpis strong { display: block; font-size: 30px; line-height: 1.4; font-weight: 550; margin-top: 8px; }
 .quality-screen .quality-kpis p { font-size: 12px; }
-.quality-screen .context-panels .panel p { border-bottom: 1px solid #f0f3f1; padding-bottom: 6px; }
 .dialog-content .gherkin-source { font-size: 12px; font-weight: 400; }
 @media (max-width: 640px) {
  .quality-intro { align-items: flex-start; padding: 18px; gap: 12px; }
@@ -2784,3 +2782,5 @@ tbody tr:hover {
 }
 
 @media (min-width: 1280px) { .quality-case-distributions .quality-distribution-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+
+.integration-screen .integration-demo-note { padding: 14px 16px; background: #f2f7f3; border: 1px solid #dce8df; border-radius: 8px; color: #466b54; font-size: 13px; line-height: 1.8; }

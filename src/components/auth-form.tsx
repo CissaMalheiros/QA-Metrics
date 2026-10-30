@@ -67,21 +67,21 @@ export function AuthForm({ mode, demo = false }: { mode: "login" | "signup"; dem
           </span>
         </Link>
         <div className="auth-story-content">
-          <span className="eyebrow light">MENOS PLANILHAS. MAIS CLAREZA.</span>
+          <span className="eyebrow light">GESTÃO DE TESTES E QUALIDADE</span>
           <h1>
             QA Metrics — Plataforma de Gestão de Qualidade de Software
           </h1>
           <p>
-            Um espaço para organizar seus projetos, acompanhar execuções e
-            transformar testes em decisões.
+            Organize casos de teste, registre execuções e acompanhe bugs
+            e indicadores de qualidade por projeto.
           </p>
           <div className="auth-feature">
             <Layers3 size={19} />
-            <span>Todos os seus projetos, em um só lugar</span>
+            <span>Projetos e casos de teste por cliente</span>
           </div>
           <div className="auth-feature">
             <BarChart3 size={19} />
-            <span>Indicadores que contam a história completa</span>
+            <span>Indicadores de execução e histórico de resultados</span>
           </div>
           <div className="auth-feature">
             <ShieldCheck size={19} />
@@ -94,21 +94,21 @@ export function AuthForm({ mode, demo = false }: { mode: "login" | "signup"; dem
               ),
             )}
             <div>
-              <Check size={16} /> Qualidade que evolui
+              <Check size={16} /> Organização dos testes
             </div>
           </div>
         </div>
-        <footer>FEITO PARA QUEM CUIDA DA QUALIDADE</footer>
+        <footer>QA METRICS · GESTÃO DE QUALIDADE DE SOFTWARE</footer>
       </section>
       <section className="auth-form-side">
-        <div className="auth-top-note">Seu próximo ciclo começa aqui.</div>
+        <div className="auth-top-note">Acesso ao QA Metrics</div>
         <div className="auth-form-wrap">
-          <span className="eyebrow">SEU ESPAÇO DE QUALIDADE</span>
-          <h2>{signup ? "Vamos começar?" : "Bom ter você de volta."}</h2>
+          <span className="eyebrow">SUA CONTA</span>
+          <h2>{signup ? "Criar sua conta" : "Entrar no QA Metrics"}</h2>
           <p>
             {signup
               ? "Crie sua conta e organize seu primeiro projeto."
-              : "Entre para acompanhar o que importa nos seus projetos."}
+              : "Acesse seus projetos, testes e resultados."}
           </p>
           <form onSubmit={submit} className="form-stack">
             {signup && (
@@ -119,7 +119,7 @@ export function AuthForm({ mode, demo = false }: { mode: "login" | "signup"; dem
                   autoComplete="name"
                   required
                   maxLength={100}
-                  placeholder="Como podemos chamar você?"
+                  placeholder="Seu nome"
                 />
               </label>
             )}
@@ -177,7 +177,7 @@ export function AuthForm({ mode, demo = false }: { mode: "login" | "signup"; dem
           </div>
         </div>
         <footer>
-          QA Metrics <span>Um novo olhar sobre a qualidade.</span>
+          QA Metrics <span>Gestão de testes e resultados.</span>
         </footer>
       </section>
     </main>
