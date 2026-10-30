@@ -8,9 +8,9 @@
     "node": ">=24 <25"
   },
   "scripts": {
-    "dev": "next dev --hostname 127.0.0.1",
+    "dev": "tsx scripts/bootstrap.ts && next dev --hostname 127.0.0.1",
     "build": "prisma generate && next build",
-    "start": "next start --hostname 127.0.0.1",
+    "start": "tsx scripts/bootstrap.ts && next start --hostname 127.0.0.1",
     "lint": "eslint .",
     "typecheck": "prisma generate && next typegen && tsc --noEmit",
     "test": "vitest run",

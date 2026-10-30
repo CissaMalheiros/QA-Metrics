@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
-export function AuthForm({ mode }: { mode: "login" | "signup" }) {
+export function AuthForm({ mode, demo = false }: { mode: "login" | "signup"; demo?: boolean }) {
   const signup = mode === "signup";
   const router = useRouter();
   const [error, setError] = useState("");
@@ -68,9 +68,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
         <div className="auth-story-content">
           <span className="eyebrow light">MENOS PLANILHAS. MAIS CLAREZA.</span>
           <h1>
-            Qualidade em cada teste.
-            <br />
-            <em>Clareza em cada entrega.</em>
+            QA Metrics — Plataforma de Gestão de Qualidade de Software
           </h1>
           <p>
             Um espaço para organizar seus projetos, acompanhar execuções e
@@ -111,6 +109,13 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
               ? "Crie sua conta e organize seu primeiro projeto."
               : "Entre para acompanhar o que importa nos seus projetos."}
           </p>
+          {demo && !signup && <section className="panel form-stack" aria-label="Explorar demonstração" style={{ padding: 20, marginBlock: 20 }}>
+            <span className="eyebrow">Explorar demonstração</span><h3>Explore o QA Metrics</h3>
+            <p>Acesse um ambiente de demonstração com projetos, casos de teste, execuções, automações, bugs e indicadores já preenchidos.</p>
+            <p>E-mail: <strong>demo@qametrics.local</strong><br />Senha: <strong>Demo@12345</strong></p>
+            <small>Conta pública compartilhada. Todos os dados são fictícios; não insira informações reais.</small>
+            <Button disabled={busy} onClick={async () => { setBusy(true); setError(""); try { const result = await authClient.signIn.email({ email: "demo@qametrics.local", password: "Demo@12345" }); if (result.error) setError("Demonstração indisponível. Tente novamente."); else router.replace("/dashboard?tab=day"); } catch { setError("Não foi possível conectar à demonstração."); } finally { setBusy(false); } }}>Entrar como demonstração</Button>
+          </section>}
           <form onSubmit={submit} className="form-stack">
             {signup && (
               <label>

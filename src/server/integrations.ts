@@ -3,10 +3,12 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireProject, withProject, importJUnit } from "@/server/services";
 import { ServiceError } from "@/server/errors";
+import { DEMO_EMAIL } from "@/lib/demo";
 const digest = (value: string) => createHash("sha256").update(value).digest("hex");
 const selection = { id: true, name: true, prefix: true, expiresAt: true, revokedAt: true, createdAt: true, lastUsedAt: true } as const;
 export async function listTokens(userId: string, projectId: string) { await requireProject(userId, projectId); return db.integrationToken.findMany({ where: { projectId }, select: selection, orderBy: { createdAt: "desc" } }); }
 export async function createToken(userId: string, projectId: string, input: unknown) {
+  if ((await db.user.findUnique({ where: { id: userId } }))?.email === DEMO_EMAIL) throw new ServiceError(403, "A conta pública de demonstração não pode criar tokens de integração.");
   const data = z.object({ name: z.string().trim().min(1).max(100), days: z.number().int().min(1).max(365).default(30) }).strict().parse(input);
   return withProject(userId, projectId, "INTEGRATION_TOKEN_CREATED", async client => {
     if (await client.integrationToken.count({ where: { projectId, revokedAt: null, expiresAt: { gt: new Date() } } }) >= 20) throw new ServiceError(409, "Revogue tokens antigos antes de criar outro (limite 20). ");

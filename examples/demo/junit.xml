@@ -1,0 +1,1 @@
+<testsuite name="Demo Checkout" tests="2" failures="1"><testcase classname="Demo.Checkout" name="Confirmar pedido" time="1.2"/><testcase classname="Demo.Checkout" name="Recuperar confirmação" time="2.4"><failure message="Timeout fictício">Falha simulada, sem dados reais.</failure></testcase></testsuite>

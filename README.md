@@ -57,19 +57,8 @@ Esse script usa as credenciais e `POSTGRES_PORT` de `.env`, escuta somente em `1
 
 ## Dados opcionais de demonstração
 
-O seed cria três projetos para dois clientes, casos manuais, ciclos abertos e encerrados e bugs. Os nomes identificam os registros como demonstração. Execute somente em desenvolvimento:
+A demonstração é criada automaticamente ao iniciar com `DEMO_MODE=true`, somente em banco dedicado cujo nome termina em `_demo`. O fluxo normal de inicialização aplica migrações e cria a conta `demo@qametrics.local` / `Demo@12345`, quatro projetos, três clientes fictícios e 80 casos, incluindo BDD, planos, ciclos, automação, bugs, retestes e evidências. Reinicializações preservam alterações. Não habilite em banco de produção. A conta pública não pode criar tokens de integração nem alterar suas credenciais e fica restrita ao próprio workspace.
 
-```powershell
-$env:NODE_ENV = 'development'
-$env:DEMO_EMAIL = 'seu-email@example.com'
-$env:DEMO_PASSWORD = Read-Host 'Senha de demonstração (10 a 128 caracteres)'
-pnpm db:seed
-Remove-Item Env:DEMO_PASSWORD
-Remove-Item Env:DEMO_EMAIL
-Remove-Item Env:NODE_ENV
-```
-
-A conta é criada pelo Better Auth. Se o email já existir, a senha existente é preservada. Reexecutar o seed não duplica projetos de demonstração já existentes e não reinicia resultados modificados. Não execute o seed contra dados de produção.
 
 ## Fluxos principais
 
@@ -170,7 +159,7 @@ O workflow `.github/workflows/checks.yml` prepara PostgreSQL temporário e execu
 | `pnpm build` / `pnpm start` | Compilar e executar a aplicação compilada |
 | `pnpm db:generate` | Regenerar Prisma Client |
 | `pnpm db:migrate` | Aplicar migrações versionadas já incluídas |
-| `pnpm db:seed` | Seed opcional com credenciais fornecidas pelo ambiente |
+| `pnpm db:seed` | Mesma demonstração idempotente usada automaticamente na inicialização |
 | `pnpm test:integration` | Regras e autorização com PostgreSQL real |
 | `pnpm test:e2e` | Jornada pelo navegador Chromium |
 

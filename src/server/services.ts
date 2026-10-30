@@ -14,6 +14,7 @@ import {
 import { calculateMetrics } from "@/domain/metrics";
 import { JUnitImportError, parseJUnit } from "@/importers/junit";
 import { ServiceError } from "@/server/errors";
+import { DEMO_EMAIL } from "@/lib/demo";
 import { recordAudit } from "@/server/audit";
 import { createHash } from "node:crypto";
 
@@ -27,7 +28,13 @@ const bugInclude = {
 } as const;
 
 function membership(userId: string) {
-  return { workspace: { members: { some: { userId } } } };
+  return { workspace: {
+    members: { some: { userId } },
+    OR: [
+      { ownerId: userId },
+      { owner: { email: { not: DEMO_EMAIL } }, members: { some: { userId, user: { email: { not: DEMO_EMAIL } } } } },
+    ],
+  } };
 }
 
 export async function getWorkspace(userId: string) {
