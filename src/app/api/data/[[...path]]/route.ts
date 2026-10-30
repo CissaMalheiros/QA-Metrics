@@ -8,6 +8,7 @@ import * as csv from "@/server/csv";
 import * as planning from "@/server/planning";
 import * as workflow from "@/server/bug-workflow";
 import * as integrations from "@/server/integrations";
+import * as productivity from "@/server/productivity";
 import { readLimitedBody } from "@/server/http";
 
 export const runtime = "nodejs";
@@ -31,7 +32,9 @@ async function handle(
     let result: unknown;
     let status = 200;
 
-    if (path.length === 1 && collection === "overview" && method === "GET") {
+    if (path.length === 1 && collection === "my-day" && method === "GET") {
+      result = await productivity.myDay(userId);
+    } else if (path.length === 1 && collection === "overview" && method === "GET") {
       result = await service.getOverview(userId);
     } else if (collection === "projects" && path.length === 1) {
       if (method === "GET")
@@ -56,7 +59,9 @@ async function handle(
       else if (method === "DELETE")
         result = await service.deleteProject(userId, projectId);
     } else if (collection === "projects" && projectId) {
-      if (resource === "automation" && path.length === 3 && method === "GET") {
+      if (resource === "quality" && path.length === 3 && method === "GET") {
+        result = await productivity.projectQuality(userId, projectId, Object.fromEntries(new URL(request.url).searchParams));
+      } else if (resource === "automation" && path.length === 3 && method === "GET") {
         result = await integrations.automationHealth(userId, projectId);
       } else if (resource === "tokens" && path.length === 3 && method === "GET") {
         result = { tokens: await integrations.listTokens(userId, projectId) };

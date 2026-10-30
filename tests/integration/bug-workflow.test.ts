@@ -19,6 +19,7 @@ it("fecha ou reabre após reteste independente sem sobrescrever a falha", async 
     await changeBug(owner, projectId, bugId, { status: "RESOLVED", fixedInBuild: outcome, priority: "HIGH", responsibleId: owner, comment: "Correção liberada" });
     const input = { name: `Reteste ${outcome}`, build: outcome, creationKey: randomUUID() };
     const run = await createRetest(owner, projectId, bugId, input); expect((await createRetest(owner, projectId, bugId, input)).id).toBe(run.id);
+    await expect(createRetest(owner, projectId, bugId, { ...input, creationKey: randomUUID() })).rejects.toMatchObject({ status: 409 });
     const retest = (await getBugWorkflow(owner, projectId, bugId)).bug.retests[0];
     await expect(finishRetest(owner, projectId, bugId, retest.id)).rejects.toMatchObject({ status: 409 });
     await updateResult(owner, projectId, run.id, retest.resultId, { status: outcome }); await completeRun(owner, projectId, run.id);

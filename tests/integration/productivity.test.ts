@@ -1,0 +1,42 @@
+import { randomUUID } from "node:crypto";
+import { beforeAll, afterAll, it, expect } from "vitest";
+import { db } from "@/lib/db";
+import { createProject, createCase, createRun, updateResult, completeRun, createBug, importJUnit } from "@/server/services";
+import { saveEnvironment, saveRelease } from "@/server/planning";
+import { myDay, projectQuality } from "@/server/productivity";
+const owner = randomUUID(), other = randomUUID(); let projectId: string, foreignId: string, releaseId: string, environmentId: string;
+beforeAll(async () => {
+  await db.user.createMany({ data: [owner, other].map(id => ({ id, name: "QA Indicadores", email: `${id}@example.test` })) });
+  projectId = (await createProject(owner, { name: "Qualidade real", clientName: "Cliente" })).id; foreignId = (await createProject(other, { name: "Projeto privado", clientName: "Outro" })).id;
+  environmentId = (await saveEnvironment(owner, projectId, { name: "QA" })).id; releaseId = (await saveRelease(owner, projectId, { name: "Checkout", version: "2.0" })).id;
+});
+afterAll(async () => { await db.bug.deleteMany({ where: { projectId } }); await db.testRun.deleteMany({ where: { projectId } }); await db.project.deleteMany({ where: { id: { in: [projectId, foreignId] } } }); await db.user.deleteMany({ where: { id: { in: [owner, other] } } }); await db.$disconnect(); });
+it("calcula builds, risco e situação da release sem misturar resultados históricos", async () => {
+  const first = await createCase(owner, projectId, { title: "Compra crítica", steps: ["Confirmar"], expectedResult: "Pedido", priority: "CRITICAL" });
+  const second = await createCase(owner, projectId, { title: "Cupom de desconto", steps: ["Aplicar"], expectedResult: "Desconto" });
+  const input = { name: "Regressão checkout", testCaseIds: [first.id, second.id], releaseId, environmentId };
+  const run1 = await createRun(owner, projectId, { ...input, build: "100" });
+  await updateResult(owner, projectId, run1.id, run1.results[0].id, { status: "FAILED" }); await updateResult(owner, projectId, run1.id, run1.results[1].id, { status: "BLOCKED" }); await completeRun(owner, projectId, run1.id);
+  await createBug(owner, projectId, { title: "Falha impeditiva", description: "Compra", severity: "CRITICAL", testResultId: run1.results[0].id });
+  const run2 = await createRun(owner, projectId, { ...input, build: "101" });
+  await updateResult(owner, projectId, run2.id, run2.results[0].id, { status: "PASSED" });
+  const quality = await projectQuality(owner, projectId, { releaseId, environmentId });
+  expect(quality.metrics).toMatchObject({ total: 4, passed: 1, failed: 1, blocked: 1, notRun: 1, passRate: 50 });
+  expect(quality.release).toMatchObject({ status: "Risco alto", criticalPlanned: 1, criticalExecuted: 1, metrics: { total: 2, passed: 1, notRun: 1, failed: 0 } });
+  expect(quality.release.blockers).toHaveLength(1); expect(quality.builds.find(value => value.build === "100")?.metrics.passRate).toBe(0); expect(quality.builds.find(value => value.build === "101")?.metrics.passRate).toBe(100);
+  expect(quality.contexts).toHaveLength(1);
+});
+it("lista atividades reais de projetos acessíveis e não expõe outro usuário", async () => {
+  const blockedCase = await createCase(owner, projectId, { title: "Dependência bloqueada", steps: ["Validar"], expectedResult: "OK" });
+  const blockedRun = await createRun(owner, projectId, { name: "Bloqueio a resolver", testCaseIds: [blockedCase.id] });
+  await updateResult(owner, projectId, blockedRun.id, blockedRun.results[0].id, { status: "BLOCKED" }); await completeRun(owner, projectId, blockedRun.id);
+  await importJUnit(owner, projectId, '<testsuite><testcase classname="Compra" name="Falha CI"><failure message="Erro"/></testcase></testsuite>');
+  const day = await myDay(owner);
+  expect(day.blocked.some(value => value.title === "Dependência bloqueada")).toBe(true);
+  expect(day.pending.some(value => value.projectId === projectId)).toBe(true); expect(day.cycles.some(value => value.projectId === projectId)).toBe(true); expect(day.failures.some(value => value.title.includes("Falha CI"))).toBe(true);
+  const foreign = await myDay(other); expect([...foreign.pending, ...foreign.cycles, ...foreign.failures].some(value => value.projectId === projectId)).toBe(false);
+  await expect(projectQuality(other, projectId, {})).rejects.toMatchObject({ status: 404 });
+  const foreignEnvironment = await saveEnvironment(other, foreignId, { name: "Privado" });
+  await expect(projectQuality(owner, projectId, { environmentId: foreignEnvironment.id })).rejects.toMatchObject({ status: 400 });
+  expect((await projectQuality(owner, projectId, { releaseId, from: "2099-01-01T00:00:00Z" })).release.status).toBe("Sem dados");
+});

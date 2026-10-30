@@ -49,6 +49,7 @@ import { CaseLibrary } from "@/components/case-library";
 import { ExecutionResults, type ExecutionResult as Result } from "@/components/execution-results";
 import { BugWorkflow } from "@/components/bug-workflow";
 import { IntegrationSettings } from "@/components/integration-settings";
+import { MyDay, ProjectQuality } from "@/components/productivity";
 import { ProjectContext } from "@/components/project-context";
 import { TestPlans } from "@/components/test-plans";
 import { RunContextFields, RunContextSummary, runFormData, type RunContext } from "@/components/run-context";
@@ -103,7 +104,7 @@ type Overview = {
   workspace: { name: string };
 };
 type Detail = { project: Project; cases: Case[]; runs: Run[]; bugs: Bug[]; suites: Suite[] };
-type Tab = "overview" | "projects" | "cases" | "runs" | "bugs" | "import" | "context" | "plans" | "integrations";
+type Tab = "overview" | "projects" | "cases" | "runs" | "bugs" | "import" | "context" | "plans" | "integrations" | "day" | "quality";
 type Editor = {
   kind: "project" | "case" | "run" | "bug";
   value?: Project | Case | Bug;
@@ -266,8 +267,8 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
   useEffect(() => { navigationProject.current = projectId; }, [projectId]);
   const requestedTab = searchParams.get("tab") ?? "overview";
   const validTabs = projectId
-    ? ["overview", "cases", "runs", "bugs", "import", "context", "plans", "integrations"]
-    : ["overview", "projects"];
+    ? ["overview", "cases", "runs", "bugs", "import", "context", "plans", "integrations", "quality"]
+    : ["overview", "projects", "day"];
   const tab = (
     validTabs.includes(requestedTab) ? requestedTab : "overview"
   ) as Tab;
@@ -344,6 +345,14 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
     const timer = setTimeout(() => setNotice(""), 6000);
     return () => clearTimeout(timer);
   }, [notice]);
+  useEffect(() => {
+    if (!projectId) return;
+    let alive = true;
+    const runId = searchParams.get("run"), bugId = searchParams.get("bug");
+    if (bugId) void request<{ bug: Bug }>(`projects/${projectId}/bugs/${bugId}`).then(value => { if (alive) setWorkflowBug(value.bug.id); }).catch(reason => { if (alive) setError(reason.message); });
+    else if (runId) void request<{ run: Run }>(`projects/${projectId}/runs/${runId}`).then(value => { if (alive) setActiveRun(value.run); }).catch(reason => { if (alive) setError(reason.message); });
+    return () => { alive = false; };
+  }, [projectId, searchParams]);
   function navigate(nextTab: Tab, id: string | null = navigationProject.current) {
     navigationProject.current = id;
     if (id !== projectId) {
@@ -496,6 +505,8 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
     context: "Ambientes e versões",
     plans: "Planos de teste",
     integrations: "Integrações CI/CD",
+    day: "Meu dia",
+    quality: "Qualidade e release",
   };
   return (
     <div className="app-layout">
@@ -531,6 +542,7 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
         </div>
         <span className="nav-caption">WORKSPACE</span>
         <nav aria-label="Navegação principal">
+          <button className={`nav-item ${tab === "day" ? "active" : ""}`} onClick={() => navigate("day", null)}><ClipboardList size={18} />Meu dia</button>
           <button
             className={`nav-item ${!projectId && tab === "overview" ? "active" : ""}`}
             onClick={() => navigate("overview", null)}
@@ -706,6 +718,7 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
                     ["context", "Ambientes e versões", FolderKanban],
                     ["plans", "Planos de teste", ClipboardList],
                     ["integrations", "Integrações CI/CD", FileCode2],
+                    ["quality", "Qualidade e release", BarChart3],
                   ] as [Tab, string, LucideIcon][]
                 ).map(([id, label, Icon]) => (
                   <button
@@ -1061,6 +1074,8 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
                     }}
                   />
                 )}
+                {tab === "day" && <MyDay />}
+                {tab === "quality" && projectId && <ProjectQuality key={projectId} projectId={projectId} />}
                 {tab === "integrations" && projectId && <IntegrationSettings key={projectId} projectId={projectId} />}
                 {tab === "context" && projectId && <ProjectContext key={projectId} projectId={projectId} />}
                 {tab === "plans" && projectId && <TestPlans key={projectId} projectId={projectId} cases={cases} onChanged={refreshAfterSave} />}
@@ -1468,7 +1483,7 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
                 {formError}
               </div>
             )}
-            <ExecutionResults results={activeRun.results} disabled={activeRun.status !== "OPEN" || activeRun.source !== "MANUAL" || busy} dirty={dirtyResults}
+            <ExecutionResults key={activeRun.id} initialResultId={searchParams.get("result") ?? undefined} results={activeRun.results} disabled={activeRun.status !== "OPEN" || activeRun.source !== "MANUAL" || busy} dirty={dirtyResults}
               onDirty={(id, value) => setDirtyResults(current => value ? [...new Set([...current, id])] : current.filter(item => item !== id))}
               onSave={async (result, values) => {
                 const response = await request<{ result: Result }>(`projects/${activeRun.projectId}/runs/${activeRun.id}/results/${result.id}`, { method: "PATCH", body: JSON.stringify(values) });

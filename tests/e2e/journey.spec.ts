@@ -3,6 +3,21 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 
+test("meu dia abre a pendência e qualidade compara builds e exporta release", async ({ page }) => {
+  await page.goto("/cadastro"); await page.getByLabel("Nome", { exact: true }).fill("QA Produtividade"); await page.getByLabel("E-mail", { exact: true }).fill(`day-${randomUUID()}@example.test`); await page.getByLabel("Senha", { exact: true }).fill(`Qa-${randomUUID()}`); await page.getByRole("button", { name: "Criar conta", exact: true }).click(); await expect(page).toHaveURL(/dashboard/);
+  const name = `Produtividade ${randomUUID().slice(0,6)}`; await createProject(page, name, "Cliente QA"); await page.getByText(name, { exact: true }).last().click(); await expect(page).toHaveURL(/project=/); const projectId = new URL(page.url()).searchParams.get("project")!;
+  async function post(path: string, data: unknown, method = "POST") { const response = await page.request.fetch(`/api/data/projects/${projectId}/${path}`, { method, data, headers: { Origin: "http://localhost:3100" } }); expect(response.ok(), await response.text()).toBeTruthy(); return response.json(); }
+  const release = (await post("releases", { name: "Checkout", version: "5.0" })).release;
+  const env = (await post("environments", { name: "QA" })).environment;
+  const testCase = (await post("cases", { title: "Compra pendente do dia", steps: ["Comprar"], expectedResult: "Pedido confirmado", priority: "CRITICAL" })).testCase;
+  const first = (await post("runs", { name: "Smoke build 500", testCaseIds: [testCase.id], releaseId: release.id, environmentId: env.id, build: "500" })).run;
+  await post(`runs/${first.id}/results/${first.results[0].id}`, { status: "FAILED" }, "PATCH"); await post(`runs/${first.id}/complete`, {});
+  await post("runs", { name: "Smoke build 501", testCaseIds: [testCase.id], releaseId: release.id, environmentId: env.id, build: "501" });
+  await page.getByRole("button", { name: "Meu dia", exact: true }).click(); await expect(page.getByRole("heading", { name: "Pendências de testes (1)", exact: true })).toBeVisible(); await page.getByRole("link", { name: "Compra pendente do dia", exact: true }).click(); const dialog = page.getByRole("dialog"); await expect(dialog.getByRole("heading", { name: "Smoke build 501", exact: true })).toBeVisible(); await expect(dialog.getByLabel("Caso em execução", { exact: true })).toBeVisible(); await dialog.getByRole("button", { name: "Fechar", exact: true }).click();
+  await page.getByRole("button", { name: "Qualidade e release", exact: true }).click(); await page.getByLabel("Versão dos indicadores", { exact: true }).selectOption(release.id); await expect(page.getByRole("region", { name: "Situação da release", exact: true })).toContainText("Release: Pendente"); await expect(page.getByRole("heading", { name: "Comparação de builds", exact: true })).toBeVisible();
+  const download = page.waitForEvent("download"); await page.getByRole("button", { name: "Exportar resumo de qualidade", exact: true }).click(); expect((await download).suggestedFilename()).toBe("qa-metrics-qualidade.txt");
+});
+
 test("gera token, recebe JUnit pela API CI, deduplica e revoga", async ({ page }) => {
   await page.goto("/cadastro"); await page.getByLabel("Nome", { exact: true }).fill("QA CI"); await page.getByLabel("E-mail", { exact: true }).fill(`ci-${randomUUID()}@example.test`); await page.getByLabel("Senha", { exact: true }).fill(`Qa-${randomUUID()}`); await page.getByRole("button", { name: "Criar conta", exact: true }).click(); await expect(page).toHaveURL(/dashboard/);
   const name = `CI ${randomUUID().slice(0,6)}`; await createProject(page, name, "Cliente CI"); await page.getByText(name, { exact: true }).last().click(); await expect(page).toHaveURL(/project=/);

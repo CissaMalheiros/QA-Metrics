@@ -1,6 +1,6 @@
 # QA Metrics — continuidade da evolução
 
-Atualizado em 29/10/2026. Solicitação: fases 8–18 sequenciais, commits locais autorizados; **nenhum push**.
+Atualizado em 29/10/2026. Escopo atual: fases 12, 14 e 15; fases 13 e 16–18 adiadas. Commits locais autorizados; **nenhum push**.
 Plano de referência: `C:/Users/cissa/Downloads/QA_Metrics_Plano_Evolucao_Atualizado.md`.
 Instruções consultadas: `C:/Users/cissa/Downloads/AGENTS.md`. Os antigos planos do MVP foram removidos a pedido do usuário; não recriá-los.
 Estado inicial: `3c9b3b4`, árvore limpa. Reutilizar Node 24 e pnpm em `.tools/node_modules/` (Node global é 22).
@@ -15,8 +15,8 @@ Estado inicial: `3c9b3b4`, árvore limpa. Reutilizar Node 24 e pnpm em `.tools/n
 | 11 | Concluída e validada | Execução guiada, rascunhos, autoria, duração e fluxo contextual de defeito |
 | 12 | Concluída e validada | Defeitos, retestes e evidências privadas |
 | 13 | Adiada pelo usuário | Requisitos e rastreabilidade |
-| 14 | Concluída e validada | Tokens por projeto, ingestão idempotente, Jenkins/GitHub Actions e vínculos BDD |
-| 15 | Não iniciada | Meu dia, indicadores contextualizados e visão de release |
+| 14 | Concluída e validada | Tokens por projeto, ingestão idempotente, exemplos Jenkins/GitHub Actions e estabilidade |
+| 15 | Concluída e validada | Meu dia, indicadores contextualizados e visão de release |
 | 16 | Adiada pelo usuário | Convites, papéis, atribuições e comentários |
 | 17 | Adiada pelo usuário | Operação, segurança, quotas, desempenho e backup/restore exercitado |
 | 18 | Adiada pelo usuário | Jornadas reais completas, Jenkins real, restauração e release validada |
@@ -81,7 +81,7 @@ Estado inicial: `3c9b3b4`, árvore limpa. Reutilizar Node 24 e pnpm em `.tools/n
 
 ## Próxima ação
 
-Fases 8–11 concluídas e validadas. Próxima ação: iniciar Fase 12 pelo fluxo de defeito/reteste/histórico/evidências privadas, consultando apenas o trecho correspondente do plano. Nenhum código da Fase 12 foi iniciado. Commits da Fase 10: 86191c0 e 1adf1aa. Commit da Fase 11: feat: executar casos com rascunhos e histórico auditável (consultar git log).
+Escopo prioritário concluído em código e validado na base isolada: fases 12, 14 e 15. Fases 13 e 16–18 adiadas, sem implementação. Pendências operacionais: aplicar migrações no banco original quando Docker retornar e executar os exemplos no Jenkins/GitHub reais com as credenciais do usuário.
 
 ## Ajuste de execução após feedback do usuário
 
@@ -103,10 +103,17 @@ Priorizar funcionalidades prontas, sem obrigação de fragmentar em pequenas ent
 - E2E simula resposta de rascunho perdida após gravação e retry com a mesma chave; retoma após recarregar, registra falha, cria defeito contextual e corrige com histórico preservado. Testes de integração cobrem concorrência, reuso inválido de chaves, conflito de versão, autorização e migração com dados antigos.
 - Ajustes de compatibilidade validados: edição apenas de notas conserva horário/executor; NOT_RUN não alega execução; encerramento exige resolver rascunhos. UI impede encerrar/fechar/navegar com alterações não salvas; descarte explícito mantém resultado anterior.
 - Foram corrigidos uma corrida ao abrir histórico durante gravação e os waits do E2E para aguardar encerramento real. O teste antigo passou a descartar explicitamente uma mudança não salva antes de encerrar, mantendo a verificação de resultado anterior preservado.
-- Continuidade: implementar todas as funcionalidades da Fase 12 (prioridade/responsável/esperado-obtido, correção disponível, histórico/comentários, retestes, relações e evidências privadas), depois 13–18 em ordem. Nenhum push. Banco original Docker ainda não migrado; permanece a limitação já registrada.
+- Orientação antiga de continuidade substituída pelo escopo prioritário 12/14/15; não avançar para 13 ou 16–18 sem nova solicitação.
 
 ## Escopo prioritário atualizado
 Implementar somente 12 → 14 → 15. Fases 13 e 16–18 adiadas explicitamente. Fase 11 commit d990cba.
 Fase 12: evidências privadas em bytea no PostgreSQL (sem arquivos executáveis/public), validação de formato/extensão/tamanho, quotas e remoção autorizada; associação a bug/resultado; prioridade/responsável/esperado-obtido/correção/histórico; retestes independentes com snapshot original, aprovação fecha e reprovação reabre. Migração 010 aplicada somente na base isolada. Dois testes de integração do fluxo + migração passaram; E2E real de upload/correção/reteste/reabertura passou; lint direcionado e build verificados. Próxima ação: Fase 14, ingestão autenticada por token e exemplos Jenkins/GitHub Actions; depois Fase 15. Sem push.
 
 Fase 12 commit cae7e7a. Fase 14 validada: endpoint multipart JUnit com Bearer por projeto, hash de tokens/expiração/revogação/rotação, limite persistente 60/h/token e upload de 5 MiB/30s; identidade provider+externalRunId independente do hash XML; conflito de payload 409; pipeline/build/branch/commit/URL/ambiente/release e datas; exemplos Jenkins/GitHub Actions e configuração remota breve no README; histórico e indício flaky por duas alternâncias em três resultados do mesmo caso/branch/ambiente nas últimas 20 execuções. Testes direcionados: 3 integração/migração + 1 timeout + E2E token/API/deduplicação/revogação e build passaram. Jenkins/GitHub externos não foram executados por ausência de instância/credenciais; endpoint real foi exercitado por HTTP. Próxima ação: Fase 15. Sem módulos de requisitos/colaboração avançada.
+
+## Fechamento do escopo prioritário
+- Fase 12 commit cae7e7a; Fase 14 commit c185367. Fase 15: Meu dia com pendências, bloqueios mais recentes por caso/ambiente/versão, correções aguardando reteste, ciclos e falhas automatizadas recentes; atalhos abrem o ciclo/caso ou defeito autorizado.
+- Dashboard de qualidade: filtros por ambiente/release/período, inventário e bugs por classificações, progresso/histórico, comparação de builds separando pipeline/branch/ambiente/release, amostra real de estabilidade e release com riscos/impedimentos/críticos/pendências e exportação TXT. Sem métricas de requisitos. Sem migração adicional na Fase 15.
+- Critérios explícitos: aprovação passed/(passed+failed); release usa última ocorrência por caso/ambiente e rascunhos como pendências; bloqueados/ignorados ficam separados de aprovados/reprovados. Relatório informa recorte e contexto histórico. Nova gravação após falha de rede mantém idempotência existente.
+- Verificação final: lint/typecheck, 83 unitários, 54 integração, 8 E2E Chromium e build passaram. Depois dos ajustes finais de agrupamento/bloqueios, testes direcionados de produtividade/retestes passaram novamente (4); E2E completo e build também passaram. Um reteste pendente não pode ser sobreposto por outro antes de validação ou cancelamento.
+- Sem push, sem novas dependências. Migrações 010/011 somente no PostgreSQL isolado; Docker original continua pendente. Jenkins/GitHub externos não foram executados; exemplos e endpoint HTTP real foram entregues e o endpoint foi validado. Nenhuma funcionalidade das fases adiadas foi declarada entregue.

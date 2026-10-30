@@ -18,12 +18,13 @@ type Event = { id: string; version: number; actorName: string | null; createdAt:
 const statusLabel = (value: string) => resultStatusLabels[value as keyof typeof resultStatusLabels] ?? value;
 function valuesOf(result: ExecutionResult): Values { return result.draft ?? { status: result.status, notes: result.notes, actualResult: result.actualResult ?? "", durationMs: result.durationMs }; }
 
-export function ExecutionResults({ results, disabled, dirty, onDirty, onSave, onBug }: {
+export function ExecutionResults({ results, disabled, dirty, onDirty, onSave, onBug, initialResultId }: {
+  initialResultId?: string;
   results: ExecutionResult[]; disabled: boolean; dirty: string[]; onDirty: (id: string, value: boolean) => void;
   onSave: (result: ExecutionResult, values: ResultWrite) => Promise<ExecutionResult>; onBug: (result: ExecutionResult) => void;
 }) {
-  const [guided, setGuided] = useState(false);
-  const [selected, setSelected] = useState("");
+  const [guided, setGuided] = useState(!!initialResultId);
+  const [selected, setSelected] = useState(initialResultId ?? "");
   const [filter, setFilter] = useState("");
   useEffect(() => {
     if (!dirty.length) return;

@@ -32,6 +32,7 @@ export async function createRetest(userId: string, projectId: string, bugId: str
     if (existing) { if (existing.creationHash !== hash) throw new ServiceError(409, "Chave já utilizada."); return existing; }
     const bug = await client.bug.findFirst({ where: { id: bugId, projectId }, include: { testResult: { include: { run: true } } } });
     if (!bug?.testResult || bug.status !== "RESOLVED") throw new ServiceError(409, "Vincule uma execução e marque a correção disponível antes de retestar.");
+    if (await client.bugRetest.count({ where: { projectId, bugId, completedAt: null, result: { run: { status: { not: "CANCELED" } } } } })) throw new ServiceError(409, "Valide o reteste pendente antes de criar outro, ou cancele seu ciclo.");
     const context = await resolveRunContext(client, projectId, data);
     const run = await client.testRun.create({ data: { projectId, name: data.name, build: data.build, environmentId: data.environmentId, releaseId: data.releaseId, creationKey: data.creationKey, creationHash: hash, contextSnapshot: context } });
     const result = await client.testResult.create({ data: { projectId, runId: run.id, testCaseId: bug.testResult.testCaseId, caseTitle: bug.testResult.caseTitle, caseSnapshot: bug.testResult.caseSnapshot as Prisma.InputJsonValue } });
