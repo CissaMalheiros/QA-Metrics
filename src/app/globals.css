@@ -1993,6 +1993,34 @@ tbody tr:hover {
   color: #aab4a9;
   margin-top: 40px;
 }
+.auth-demo {
+  margin-top: 28px;
+  border-top: 1px solid #e1e7df;
+  color: #526658;
+  font-size: 12px;
+}
+.auth-demo summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 48px;
+  cursor: pointer;
+  list-style: none;
+  color: #365e48;
+}
+.auth-demo summary::-webkit-details-marker { display: none; }
+.auth-demo summary > span { display: flex; align-items: center; gap: 9px; }
+.auth-demo[open] summary > svg { transform: rotate(180deg); }
+.auth-demo summary:focus-visible { outline: 2px solid #365e48; outline-offset: 4px; border-radius: 3px; }
+.auth-demo-content { display: grid; gap: 16px; padding: 4px 0 18px; line-height: 1.7; }
+.auth-demo-content p, .auth-demo-credentials { margin: 0; }
+.auth-demo-credentials { display: grid; gap: 8px; }
+.auth-demo-credentials > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; }
+.auth-demo-credentials dt { color: #65756a; }
+.auth-demo-credentials dd { margin: 0; color: #304738; overflow-wrap: anywhere; }
+.auth-demo-content small { font-size: 11px; color: #65756a; }
+.auth-demo-content > .button { width: 100%; min-height: 44px; justify-content: center; }
 .auth-form-side > footer {
   display: flex;
   align-items: center;

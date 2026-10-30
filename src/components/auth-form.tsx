@@ -6,6 +6,7 @@ import {
   ArrowRight,
   BarChart3,
   Check,
+  ChevronDown,
   FlaskConical,
   Layers3,
   ShieldCheck,
@@ -109,13 +110,6 @@ export function AuthForm({ mode, demo = false }: { mode: "login" | "signup"; dem
               ? "Crie sua conta e organize seu primeiro projeto."
               : "Entre para acompanhar o que importa nos seus projetos."}
           </p>
-          {demo && !signup && <section className="panel form-stack" aria-label="Explorar demonstração" style={{ padding: 20, marginBlock: 20 }}>
-            <span className="eyebrow">Explorar demonstração</span><h3>Explore o QA Metrics</h3>
-            <p>Acesse um ambiente de demonstração com projetos, casos de teste, execuções, automações, bugs e indicadores já preenchidos.</p>
-            <p>E-mail: <strong>demo@qametrics.local</strong><br />Senha: <strong>Demo@12345</strong></p>
-            <small>Conta pública compartilhada. Todos os dados são fictícios; não insira informações reais.</small>
-            <Button disabled={busy} onClick={async () => { setBusy(true); setError(""); try { const result = await authClient.signIn.email({ email: "demo@qametrics.local", password: "Demo@12345" }); if (result.error) setError("Demonstração indisponível. Tente novamente."); else router.replace("/dashboard?tab=day"); } catch { setError("Não foi possível conectar à demonstração."); } finally { setBusy(false); } }}>Entrar como demonstração</Button>
-          </section>}
           <form onSubmit={submit} className="form-stack">
             {signup && (
               <label>
@@ -168,6 +162,15 @@ export function AuthForm({ mode, demo = false }: { mode: "login" | "signup"; dem
               {signup ? "Entrar" : "Criar conta"}
             </Link>
           </p>
+          {demo && !signup && <details className="auth-demo">
+            <summary><span><FlaskConical size={16} aria-hidden="true" />Explorar demonstração</span><ChevronDown size={15} aria-hidden="true" /></summary>
+            <div className="auth-demo-content">
+            <p>Conheça a plataforma com projetos, testes e indicadores fictícios já preenchidos.</p>
+            <dl className="auth-demo-credentials"><div><dt>E-mail</dt><dd>demo@qametrics.local</dd></div><div><dt>Senha</dt><dd>Demo@12345</dd></div></dl>
+            <small>Conta pública compartilhada. Todos os dados são fictícios; não insira informações reais.</small>
+            <Button variant="outline" disabled={busy} onClick={async () => { setBusy(true); setError(""); try { const result = await authClient.signIn.email({ email: "demo@qametrics.local", password: "Demo@12345" }); if (result.error) setError("Demonstração indisponível. Tente novamente."); else router.replace("/dashboard?tab=day"); } catch { setError("Não foi possível conectar à demonstração."); } finally { setBusy(false); } }}>Entrar como demonstração</Button>
+            </div>
+          </details>}
           <div className="auth-security">
             <ShieldCheck size={15} /> Ambiente local · Conexão com seu
             PostgreSQL
