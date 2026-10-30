@@ -1,0 +1,23 @@
+"use client";
+import { useEffect, useState } from "react";
+import { request } from "@/lib/api-client";
+import { Field } from "@/components/ui/field";
+import { Button } from "@/components/ui/button";
+type Token = { id: string; name: string; prefix: string; expiresAt: string; revokedAt: string | null; lastUsedAt: string | null };
+export function IntegrationSettings({ projectId }: { projectId: string }) {
+  const [health, setHealth] = useState<{ sampledRuns: number; unstable: { testCaseId: string; title: string; branch: string }[]; runs: { id: string; name: string; branch: string; commit: string; failed: number }[] } | null>(null);
+  const [tokens, setTokens] = useState<Token[]>([]), [secret, setSecret] = useState(""), [error, setError] = useState(""), [busy, setBusy] = useState(false);
+  async function load() { setTokens((await request<{ tokens: Token[] }>(`projects/${projectId}/tokens`)).tokens); }
+  useEffect(() => { let alive = true; request<{ tokens: Token[] }>(`projects/${projectId}/tokens`).then(value => { if (alive) setTokens(value.tokens); }).catch(reason => { if (alive) setError(reason.message); }); return () => { alive = false; }; }, [projectId]);
+  useEffect(() => { let alive = true; request<NonNullable<typeof health>>(`projects/${projectId}/automation`).then(value => { if (alive) setHealth(value); }).catch(reason => { if (alive) setError(reason.message); }); return () => { alive = false; }; }, [projectId]);
+  return <section className="panel form-stack" aria-label="Integrações CI/CD"><h2>Integrações CI/CD</h2><p>Jenkins ou GitHub Actions executam seus testes e enviam JUnit para <code>/api/integrations/junit</code>. O token permite somente ingestão neste projeto.</p>
+    {error && <p role="alert">{error}</p>}
+    {secret && <div role="status"><p>Copie o token agora; ele não será exibido novamente. Guarde-o nas credenciais da pipeline.</p><Field label="Token gerado"><input readOnly value={secret} onFocus={event => event.target.select()} /></Field><Button variant="outline" onClick={() => setSecret("")}>Ocultar token</Button></div>}
+    <form onSubmit={async event => { event.preventDefault(); const form = new FormData(event.currentTarget); setBusy(true); setError(""); try { const value = await request<{ token: { secret: string } }>(`projects/${projectId}/tokens`, { method: "POST", body: JSON.stringify({ name: form.get("name"), days: Number(form.get("days")) }) }); setSecret(value.token.secret); await load(); } catch (reason) { setError(reason instanceof Error ? reason.message : "Falha ao gerar token."); } finally { setBusy(false); } }}>
+      <Field label="Nome do token"><input name="name" required maxLength={100} placeholder="Jenkins checkout" /></Field><Field label="Validade em dias"><input type="number" name="days" min={1} max={365} defaultValue={30} required /></Field><Button disabled={busy}>Gerar token de ingestão</Button>
+    </form>
+    {tokens.map(token => <div className="context-row" key={token.id}><div><strong>{token.name}</strong><p>{token.prefix}… · {token.revokedAt ? "Revogado" : `Expira em ${new Date(token.expiresAt).toLocaleDateString("pt-BR")}`}</p><small>Último uso: {token.lastUsedAt ? new Date(token.lastUsedAt).toLocaleString("pt-BR") : "Nunca"}</small></div><Button variant="outline" disabled={busy || !!token.revokedAt} onClick={async () => { setBusy(true); try { await request(`projects/${projectId}/tokens/${token.id}`, { method: "DELETE" }); await load(); } catch (reason) { setError(reason instanceof Error ? reason.message : "Falha na revogação."); } finally { setBusy(false); } }}>Revogar {token.name}</Button></div>)}
+    <p>Limite: 60 relatórios/hora por token, 5 MiB por XML. Repita a mesma identidade externa somente com o mesmo relatório e metadados. Para rotacionar, gere outro token, atualize a pipeline e revogue o anterior.</p>
+    {health && <section aria-label="Estabilidade da automação"><h3>Histórico automatizado</h3><p>Amostra: últimas {health.sampledRuns} execuções CI. Indício de instabilidade: ao menos três resultados e duas alternâncias aprovado/reprovado do mesmo caso, branch e ambiente. Isso também pode refletir correções; não é diagnóstico definitivo.</p>{health.unstable.length ? health.unstable.map(value => <p key={`${value.testCaseId}-${value.branch}`}>{value.title} · {value.branch || "branch não informada"} · Alternância detectada</p>) : <p>Nenhuma alternância suficiente na amostra.</p>}{health.runs.map(run => <div className="context-row" key={run.id}><strong>{run.name}</strong><span>{run.branch} · {run.commit.slice(0, 12)} · {run.failed} falhas</span></div>)}</section>}
+  </section>;
+}

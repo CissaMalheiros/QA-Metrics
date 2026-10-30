@@ -3,11 +3,11 @@ import { useEffect, useState } from "react";
 import { request } from "@/lib/api-client";
 import { Field } from "@/components/ui/field";
 
-export type RunContext = { build?: string; environment?: { name: string; baseUrl: string } | null; release?: { name: string; version: string } | null; responsible?: { name: string } | null; plan?: { name: string; revision: number } | null };
+export type RunContext = { pipeline?: string; branch?: string; commit?: string; buildUrl?: string; build?: string; environment?: { name: string; baseUrl: string } | null; release?: { name: string; version: string } | null; responsible?: { name: string } | null; plan?: { name: string; revision: number } | null };
 type Options = { environments: { id: string; name: string; archived: boolean }[]; releases: { id: string; name: string; version: string; archived: boolean }[]; members: { id: string; name: string }[] };
 export function RunContextSummary({ value }: { value?: RunContext }) {
   if (!value || !Object.keys(value).length) return null;
-  return <span className="run-context-summary">{[value.plan && `${value.plan.name} · revisão ${value.plan.revision}`, value.release && `Versão ${value.release.version}`, value.build && `Build ${value.build}`, value.environment && `Ambiente ${value.environment.name}`, value.responsible && `Responsável ${value.responsible.name}`].filter(Boolean).join(" · ") || "Contexto não informado"}</span>;
+  return <span className="run-context-summary">{[value.plan && `${value.plan.name} · revisão ${value.plan.revision}`, value.release && `Versão ${value.release.version}`, value.build && `Build ${value.build}`, value.environment && `Ambiente ${value.environment.name}`, value.responsible && `Responsável ${value.responsible.name}`, value.pipeline && `Pipeline ${value.pipeline}`, value.branch && `Branch ${value.branch}`, value.commit && `Commit ${value.commit.slice(0, 12)}`].filter(Boolean).join(" · ") || "Contexto não informado"}</span>;
 }
 export function runFormData(form: FormData) {
   const value = (name: string) => String(form.get(name) ?? "");

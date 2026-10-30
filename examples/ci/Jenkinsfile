@@ -1,0 +1,39 @@
+pipeline {
+  agent any
+  parameters {
+    string(name: 'QA_METRICS_URL', defaultValue: 'https://qa.example.com', description: 'Endereço acessível pelo agente Jenkins')
+    string(name: 'QA_RELEASE', defaultValue: '1.0.0')
+    string(name: 'QA_ENVIRONMENT', defaultValue: 'QA')
+  }
+  stages {
+    stage('Testes Playwright') {
+      steps {
+        sh 'corepack pnpm install --frozen-lockfile'
+        sh 'corepack pnpm exec playwright install --with-deps chromium'
+        sh 'PLAYWRIGHT_JUNIT_OUTPUT_NAME=test-results/junit.xml corepack pnpm exec playwright test --reporter=junit'
+      }
+    }
+  }
+  post {
+    always {
+      junit allowEmptyResults: true, testResults: 'test-results/junit.xml'
+      withCredentials([string(credentialsId: 'qa-metrics-ingest', variable: 'QA_METRICS_TOKEN')]) {
+        sh '''
+          set +x
+          if [ -f test-results/junit.xml ]; then
+            curl --fail-with-body --retry 2 --retry-delay 2 --max-time 90 \
+              -H "Authorization: Bearer $QA_METRICS_TOKEN" \
+              -F 'file=@test-results/junit.xml;type=application/xml' \
+              --form-string provider=jenkins \
+              --form-string "externalRunId=$JOB_NAME:$BUILD_NUMBER" \
+              --form-string "pipeline=$JOB_NAME" --form-string "build=$BUILD_NUMBER" \
+              --form-string "buildUrl=$BUILD_URL" --form-string "branch=${BRANCH_NAME:-}" \
+              --form-string "commit=${GIT_COMMIT:-}" \
+              --form-string "release=$QA_RELEASE" --form-string "environment=$QA_ENVIRONMENT" \
+              "$QA_METRICS_URL/api/integrations/junit"
+          fi
+        '''
+      }
+    }
+  }
+}

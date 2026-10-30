@@ -1,0 +1,35 @@
+import { randomUUID } from "node:crypto";
+import { beforeAll, afterAll, expect, it } from "vitest";
+import { db } from "@/lib/db";
+import { createProject } from "@/server/services";
+import { createToken, listTokens, authorizeIntegration, ingestJUnit, revokeToken, automationHealth } from "@/server/integrations";
+const user = randomUUID(), other = randomUUID(); let projectId: string;
+const xml = '<testsuite><testcase classname="Checkout" name="Compra" time="0.2"/></testsuite>';
+beforeAll(async () => { await db.user.createMany({ data: [user, other].map(id => ({ id, name: "CI QA", email: `${id}@example.test` })) }); projectId = (await createProject(user, { name: "CI projeto", clientName: "Cliente" })).id; });
+afterAll(async () => { await db.testRun.deleteMany({ where: { projectId } }); await db.project.deleteMany({ where: { id: projectId } }); await db.user.deleteMany({ where: { id: { in: [user, other] } } }); await db.$disconnect(); });
+it("autoriza somente o projeto do token, guarda hash e revoga acesso", async () => {
+  const token = await createToken(user, projectId, { name: "Jenkins", days: 2 });
+  expect((await db.integrationToken.findUniqueOrThrow({ where: { id: token.id } })).hash).not.toBe(token.secret);
+  expect(JSON.stringify(await listTokens(user, projectId))).not.toContain(token.secret);
+  await expect(listTokens(other, projectId)).rejects.toMatchObject({ status: 404 });
+  const identity = await authorizeIntegration(`Bearer ${token.secret}`); expect(identity.projectId).toBe(projectId);
+  const metadata = { provider: "jenkins", externalRunId: "checkout:1", pipeline: "checkout", build: "1", release: "1.0", environment: "QA" };
+  const first = await ingestJUnit(identity, Buffer.from(xml), metadata);
+  expect((await ingestJUnit(identity, Buffer.from(xml), metadata)).duplicate).toBe(true);
+  const next = await ingestJUnit(identity, Buffer.from(xml), { ...metadata, externalRunId: "checkout:2", build: "2" }); expect(next.run.id).not.toBe(first.run.id);
+  expect(next.run.contextSnapshot).toMatchObject({ build: "2", environment: { name: "QA" }, release: { version: "1.0" } });
+  await ingestJUnit(identity, Buffer.from(xml.replace('/>', '><failure message="error"/></testcase>')), { ...metadata, externalRunId: "checkout:3", build: "3" });
+  await ingestJUnit(identity, Buffer.from(xml), { ...metadata, externalRunId: "checkout:4", build: "4" });
+  expect((await automationHealth(user, projectId)).unstable).toHaveLength(1);
+  await expect(ingestJUnit(identity, Buffer.from(xml.replace('/>', '><failure message="error"/></testcase>')), metadata)).rejects.toMatchObject({ status: 409 });
+  await expect(ingestJUnit(identity, Buffer.from(xml), { ...metadata, projectId: "foreign" })).rejects.toThrow();
+  await expect(ingestJUnit(identity, Buffer.from('<!DOCTYPE x [<!ENTITY x SYSTEM "file:///etc/passwd">]><testsuite/>'), { ...metadata, externalRunId: "xxe" })).rejects.toThrow();
+  await revokeToken(user, projectId, token.id); await expect(authorizeIntegration(`Bearer ${token.secret}`)).rejects.toMatchObject({ status: 401 });
+});
+it("aplica expiração e limite de uso de forma persistida", async () => {
+  const token = await createToken(user, projectId, { name: "Limitado" });
+  await db.integrationToken.update({ where: { id: token.id }, data: { requests: 60 } });
+  await expect(authorizeIntegration(`Bearer ${token.secret}`)).rejects.toMatchObject({ status: 429 });
+  await db.integrationToken.update({ where: { id: token.id }, data: { expiresAt: new Date(0) } });
+  await expect(authorizeIntegration(`Bearer ${token.secret}`)).rejects.toMatchObject({ status: 401 });
+});

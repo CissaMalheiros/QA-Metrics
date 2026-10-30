@@ -48,6 +48,7 @@ import { request } from "@/lib/api-client";
 import { CaseLibrary } from "@/components/case-library";
 import { ExecutionResults, type ExecutionResult as Result } from "@/components/execution-results";
 import { BugWorkflow } from "@/components/bug-workflow";
+import { IntegrationSettings } from "@/components/integration-settings";
 import { ProjectContext } from "@/components/project-context";
 import { TestPlans } from "@/components/test-plans";
 import { RunContextFields, RunContextSummary, runFormData, type RunContext } from "@/components/run-context";
@@ -102,7 +103,7 @@ type Overview = {
   workspace: { name: string };
 };
 type Detail = { project: Project; cases: Case[]; runs: Run[]; bugs: Bug[]; suites: Suite[] };
-type Tab = "overview" | "projects" | "cases" | "runs" | "bugs" | "import" | "context" | "plans";
+type Tab = "overview" | "projects" | "cases" | "runs" | "bugs" | "import" | "context" | "plans" | "integrations";
 type Editor = {
   kind: "project" | "case" | "run" | "bug";
   value?: Project | Case | Bug;
@@ -265,7 +266,7 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
   useEffect(() => { navigationProject.current = projectId; }, [projectId]);
   const requestedTab = searchParams.get("tab") ?? "overview";
   const validTabs = projectId
-    ? ["overview", "cases", "runs", "bugs", "import", "context", "plans"]
+    ? ["overview", "cases", "runs", "bugs", "import", "context", "plans", "integrations"]
     : ["overview", "projects"];
   const tab = (
     validTabs.includes(requestedTab) ? requestedTab : "overview"
@@ -494,6 +495,7 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
     import: "Importar resultados",
     context: "Ambientes e versões",
     plans: "Planos de teste",
+    integrations: "Integrações CI/CD",
   };
   return (
     <div className="app-layout">
@@ -703,6 +705,7 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
                     ["import", "Importar XML", Upload],
                     ["context", "Ambientes e versões", FolderKanban],
                     ["plans", "Planos de teste", ClipboardList],
+                    ["integrations", "Integrações CI/CD", FileCode2],
                   ] as [Tab, string, LucideIcon][]
                 ).map(([id, label, Icon]) => (
                   <button
@@ -1058,6 +1061,7 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
                     }}
                   />
                 )}
+                {tab === "integrations" && projectId && <IntegrationSettings key={projectId} projectId={projectId} />}
                 {tab === "context" && projectId && <ProjectContext key={projectId} projectId={projectId} />}
                 {tab === "plans" && projectId && <TestPlans key={projectId} projectId={projectId} cases={cases} onChanged={refreshAfterSave} />}
                 {tab === "cases" && projectId && (

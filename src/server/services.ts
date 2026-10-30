@@ -569,11 +569,13 @@ export async function deleteBug(
   });
 }
 
+export type CIContext = { provider: string; externalRunId: string; pipeline: string; branch: string; commit: string; buildUrl: string; build: string; environment: string; release: string; startedAt?: string; finishedAt?: string };
 export async function importJUnit(
   userId: string,
   projectId: string,
   input: Buffer | string,
   name?: string,
+  ci?: CIContext,
 ) {
   await requireProject(userId, projectId);
   let parsed: ReturnType<typeof parseJUnit>;
@@ -588,10 +590,11 @@ export async function importJUnit(
     name?.trim() ||
     `Importação JUnit · ${new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date())}`
   ).slice(0, 200);
+  const payloadHash = ci ? createHash("sha256").update(JSON.stringify({ ...ci, sha256: parsed.sha256 })).digest("hex") : null;
   try {
     return await withProject(userId, projectId, "JUNIT_IMPORTED", async (client) => {
       const existing = await client.testRun.findUnique({
-        where: {
+        where: ci ? { projectId_integrationProvider_externalRunId: { projectId, integrationProvider: ci.provider, externalRunId: ci.externalRunId } } : {
           projectId_importedFileSha256: {
             projectId,
             importedFileSha256: parsed.sha256,
@@ -599,6 +602,7 @@ export async function importJUnit(
         },
         include: runInclude,
       });
+      if (existing && ci && existing.integrationPayloadHash !== payloadHash) throw new ServiceError(409, "A execução externa já existe com outro relatório ou metadados.");
       if (existing)
         return {
           run: existing,
@@ -634,15 +638,20 @@ export async function importJUnit(
         storedCases.map((testCase) => [testCase.externalKey, testCase]),
       );
       const now = new Date();
+      const environment = ci?.environment ? await client.environment.upsert({ where: { projectId_name: { projectId, name: ci.environment } }, create: { projectId, name: ci.environment }, update: {} }) : null;
+      const release = ci?.release ? await client.release.upsert({ where: { projectId_version: { projectId, version: ci.release } }, create: { projectId, name: ci.release, version: ci.release }, update: {} }) : null;
+      if (environment?.archived || release?.archived) throw new ServiceError(409, "Ambiente ou versão arquivados.");
       const run = await client.testRun.create({
         data: {
           projectId,
           name: runName,
           source: "JUNIT_IMPORT",
           status: "COMPLETED",
-          importedFileSha256: parsed.sha256,
-          startedAt: now,
-          finishedAt: now,
+          importedFileSha256: ci ? null : parsed.sha256,
+          reportSha256: parsed.sha256,
+          ...(ci ? { integrationProvider: ci.provider, externalRunId: ci.externalRunId, integrationPayloadHash: payloadHash, pipeline: ci.pipeline, branch: ci.branch, commit: ci.commit, buildUrl: ci.buildUrl, build: ci.build, environmentId: environment?.id, releaseId: release?.id, contextSnapshot: { environment: environment ? { id: environment.id, name: environment.name, baseUrl: environment.baseUrl } : null, release: release ? { id: release.id, name: release.name, version: release.version } : null, build: ci.build, pipeline: ci.pipeline, branch: ci.branch, commit: ci.commit, buildUrl: ci.buildUrl } } : {}),
+          startedAt: ci?.startedAt ? new Date(ci.startedAt) : now,
+          finishedAt: ci?.finishedAt ? new Date(ci.finishedAt) : now,
         },
       });
       for (let offset = 0; offset < parsed.cases.length; offset += 500) {
@@ -684,6 +693,7 @@ export async function importJUnit(
       };
     });
   } catch (error) {
+    if (ci) throw error;
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002"

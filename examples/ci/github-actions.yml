@@ -1,0 +1,38 @@
+name: Tests and QA Metrics
+on: [push, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: corepack pnpm install --frozen-lockfile
+      - run: corepack pnpm exec playwright install --with-deps chromium
+      - run: corepack pnpm exec playwright test --reporter=junit
+        env:
+          PLAYWRIGHT_JUNIT_OUTPUT_NAME: test-results/junit.xml
+      - name: Send results, including failures
+        if: always() && hashFiles('test-results/junit.xml') != ''
+        env:
+          QA_METRICS_URL: ${{ vars.QA_METRICS_URL }}
+          QA_METRICS_TOKEN: ${{ secrets.QA_METRICS_TOKEN }}
+          QA_RELEASE: ${{ vars.QA_RELEASE }}
+          QA_ENVIRONMENT: ${{ vars.QA_ENVIRONMENT }}
+        run: |
+          set +x
+          curl --fail-with-body --retry 2 --retry-delay 2 --max-time 90 \
+            -H "Authorization: Bearer $QA_METRICS_TOKEN" \
+            -F 'file=@test-results/junit.xml;type=application/xml' \
+            --form-string provider=github-actions \
+            --form-string "externalRunId=$GITHUB_REPOSITORY:$GITHUB_RUN_ID:$GITHUB_RUN_ATTEMPT" \
+            --form-string "pipeline=$GITHUB_WORKFLOW" --form-string "build=$GITHUB_RUN_NUMBER" \
+            --form-string "branch=$GITHUB_REF_NAME" --form-string "commit=$GITHUB_SHA" \
+            --form-string "buildUrl=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            --form-string "release=$QA_RELEASE" --form-string "environment=$QA_ENVIRONMENT" \
+            "$QA_METRICS_URL/api/integrations/junit"

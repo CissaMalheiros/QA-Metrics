@@ -137,6 +137,7 @@ model Project {
   releases Release[]
   plans TestPlan[]
   evidence Evidence[]
+  integrationTokens IntegrationToken[]
   @@index([workspaceId])
 }
 model TestCase {
@@ -190,6 +191,14 @@ model TestRun {
   importedFileSha256 String?
   creationKey String?
   creationHash String?
+  integrationProvider String?
+  externalRunId String?
+  pipeline String @default("")
+  branch String @default("")
+  commit String @default("")
+  buildUrl String @default("")
+  reportSha256 String?
+  integrationPayloadHash String?
   startedAt DateTime? @default(now())
   planId String?
   plan TestPlan? @relation(fields: [planId, projectId], references: [id, projectId], onDelete: Restrict)
@@ -210,8 +219,25 @@ model TestRun {
   results TestResult[]
   @@unique([projectId, importedFileSha256])
   @@unique([projectId, creationKey])
+  @@unique([projectId, integrationProvider, externalRunId])
   @@unique([id, projectId])
   @@index([projectId, createdAt])
+}
+
+model IntegrationToken {
+  id String @id @default(uuid())
+  projectId String
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name String
+  hash String @unique
+  prefix String
+  expiresAt DateTime
+  revokedAt DateTime?
+  lastUsedAt DateTime?
+  windowStart DateTime @default(now())
+  requests Int @default(0)
+  createdAt DateTime @default(now())
+  @@index([projectId])
 }
 model TestResult {
   id String @id @default(cuid())

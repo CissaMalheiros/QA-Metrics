@@ -37,9 +37,12 @@ export async function readLimitedBody(
   const reader = request.body.getReader();
   const chunks: Uint8Array[] = [];
   let total = 0;
+  let timedOut = false;
+  const timeout = setTimeout(() => { timedOut = true; void reader.cancel().catch(() => {}); }, 30000);
   try {
     while (true) {
       const { done, value } = await reader.read();
+      if (timedOut) throw new ServiceError(408, "Tempo limite de envio excedido.");
       if (done) break;
       total += value.byteLength;
       if (total > maximum) {
@@ -52,6 +55,7 @@ export async function readLimitedBody(
       chunks.push(value);
     }
   } finally {
+    clearTimeout(timeout);
     reader.releaseLock();
   }
   const bytes = new Uint8Array(total);

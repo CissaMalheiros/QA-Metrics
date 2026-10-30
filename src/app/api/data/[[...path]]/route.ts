@@ -7,6 +7,7 @@ import * as gherkin from "@/server/gherkin";
 import * as csv from "@/server/csv";
 import * as planning from "@/server/planning";
 import * as workflow from "@/server/bug-workflow";
+import * as integrations from "@/server/integrations";
 import { readLimitedBody } from "@/server/http";
 
 export const runtime = "nodejs";
@@ -55,7 +56,15 @@ async function handle(
       else if (method === "DELETE")
         result = await service.deleteProject(userId, projectId);
     } else if (collection === "projects" && projectId) {
-      if (resource === "evidence" && resourceId && path.length === 4 && method === "GET") {
+      if (resource === "automation" && path.length === 3 && method === "GET") {
+        result = await integrations.automationHealth(userId, projectId);
+      } else if (resource === "tokens" && path.length === 3 && method === "GET") {
+        result = { tokens: await integrations.listTokens(userId, projectId) };
+      } else if (resource === "tokens" && path.length === 3 && method === "POST") {
+        result = { token: await integrations.createToken(userId, projectId, await readJson(request)) }; status = 201;
+      } else if (resource === "tokens" && resourceId && path.length === 4 && method === "DELETE") {
+        result = await integrations.revokeToken(userId, projectId, resourceId);
+      } else if (resource === "evidence" && resourceId && path.length === 4 && method === "GET") {
         const file = await workflow.readEvidence(userId, projectId, resourceId);
         return new Response(new Uint8Array(file.content), { headers: { "Content-Type": file.mime, "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(file.name)}`, "X-Content-Type-Options": "nosniff", "Cache-Control": "private, no-store", "Content-Security-Policy": "sandbox" } });
       } else if (resource === "evidence" && resourceId && path.length === 4 && method === "DELETE") {

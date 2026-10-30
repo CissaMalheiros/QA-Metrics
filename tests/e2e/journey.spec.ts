@@ -3,6 +3,17 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 
+test("gera token, recebe JUnit pela API CI, deduplica e revoga", async ({ page }) => {
+  await page.goto("/cadastro"); await page.getByLabel("Nome", { exact: true }).fill("QA CI"); await page.getByLabel("E-mail", { exact: true }).fill(`ci-${randomUUID()}@example.test`); await page.getByLabel("Senha", { exact: true }).fill(`Qa-${randomUUID()}`); await page.getByRole("button", { name: "Criar conta", exact: true }).click(); await expect(page).toHaveURL(/dashboard/);
+  const name = `CI ${randomUUID().slice(0,6)}`; await createProject(page, name, "Cliente CI"); await page.getByText(name, { exact: true }).last().click(); await expect(page).toHaveURL(/project=/);
+  await page.getByRole("button", { name: "Integrações CI/CD", exact: true }).click(); await page.getByLabel("Nome do token", { exact: true }).fill("Jenkins E2E"); await page.getByRole("button", { name: "Gerar token de ingestão", exact: true }).click(); const token = page.getByLabel("Token gerado", { exact: true }); await expect(token).toHaveValue(/^qm_/); const secret = await token.inputValue();
+  const multipart = { file: { name: "junit.xml", mimeType: "application/xml", buffer: Buffer.from('<testsuite><testcase classname="Compra" name="Confirmar"/></testsuite>') }, provider: "jenkins", externalRunId: "checkout:200", pipeline: "checkout", build: "200", environment: "QA", release: "2.0" };
+  const send = () => page.request.post("/api/integrations/junit", { headers: { Authorization: `Bearer ${secret}` }, multipart });
+  const first = await send(); expect(first.status(), await first.text()).toBe(201); expect((await (await send()).json()).duplicate).toBe(true);
+  await page.getByRole("button", { name: "Ciclos", exact: true }).click(); await expect(page).toHaveURL(/tab=runs/); await page.reload(); await expect(page.getByRole("button", { name: /checkout · 200/ })).toBeVisible();
+  await page.getByRole("button", { name: "Integrações CI/CD", exact: true }).click(); await page.getByRole("button", { name: "Revogar Jenkins E2E", exact: true }).click(); await expect(page.getByRole("button", { name: "Revogar Jenkins E2E", exact: true })).toBeDisabled(); expect((await send()).status()).toBe(401);
+});
+
 test("anexa evidência e reabre defeito após reteste reprovado", async ({ page }) => {
   await page.goto("/cadastro");
   await page.getByLabel("Nome", { exact: true }).fill("QA Defeitos");
