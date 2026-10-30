@@ -1,123 +1,46 @@
-# QA Metrics — continuidade da evolução
+# Estado de entrega — QA Metrics
 
-Atualizado em 29/10/2026. Escopo atual: fases 12, 14 e 15; fases 13 e 16–18 adiadas. Commits locais autorizados; **nenhum push**.
-Plano de referência: `C:/Users/cissa/Downloads/QA_Metrics_Plano_Evolucao_Atualizado.md`.
-Instruções consultadas: `C:/Users/cissa/Downloads/AGENTS.md`. Os antigos planos do MVP foram removidos a pedido do usuário; não recriá-los.
-Estado inicial: `3c9b3b4`, árvore limpa. Reutilizar Node 24 e pnpm em `.tools/node_modules/` (Node global é 22).
+Atualizado em 30/10/2026.
 
-## Ordem e progresso
+## Implementado
 
-| Fase | Estado | Escopo/pendência |
-| --- | --- | --- |
-| 8 | Concluída e validada | Auditoria do MVP, retenção de histórico, AuditLog transacional, migração aditiva e teste com registros antigos |
-| 9 | Concluída e validada | Organização, revisões, BDD/feature e CSV com frontend/backend/banco/testes |
-| 10 | Concluída e validada | Planos reutilizáveis, versões, builds e ambientes |
-| 11 | Concluída e validada | Execução guiada, rascunhos, autoria, duração e fluxo contextual de defeito |
-| 12 | Concluída e validada | Defeitos, retestes e evidências privadas |
-| 13 | Adiada pelo usuário | Requisitos e rastreabilidade |
-| 14 | Concluída e validada | Tokens por projeto, ingestão idempotente, exemplos Jenkins/GitHub Actions e estabilidade |
-| 15 | Concluída e validada | Meu dia, indicadores contextualizados e visão de release |
-| 16 | Adiada pelo usuário | Convites, papéis, atribuições e comentários |
-| 17 | Adiada pelo usuário | Operação, segurança, quotas, desempenho e backup/restore exercitado |
-| 18 | Adiada pelo usuário | Jornadas reais completas, Jenkins real, restauração e release validada |
+- Autenticação e workspace pessoal, projetos por cliente, autorização e isolamento por projeto.
+- Biblioteca com suítes, revisões, tags, operações em lote, BDD/Gherkin e CSV com prévia.
+- Planos e ciclos por ambiente/release/build; execução manual, rascunhos e histórico preservado.
+- Bugs, evidências privadas, correção, retestes e reabertura sem sobrescrever resultados anteriores.
+- Ingestão JUnit por token de projeto, revogação, deduplicação e exemplos Jenkins/GitHub Actions.
+- Meu dia, dashboards, comparação de builds, indícios de instabilidade e resumo de release.
+- Demonstração automática, idempotente e isolada; interface refinada para desktop e celular.
 
-## Auditoria de partida (fases 0–7)
+## Execução e dados
 
-- 0: stack, Compose persistente, migração inicial, instalação e scripts existentes. Instalação em máquina limpa ainda não exercitada nesta evolução.
-- 1: Better Auth, sessão no servidor, workspace pessoal, CRUD de projetos e seed existentes; testes de duas contas disponíveis.
-- 2: casos, filtros, validação Zod e autorização existentes. Código visual depende da posição na lista (resolver na fase 9).
-- 3: ciclos manuais, cinco resultados, notas, snapshots e encerramento imutável existentes; locks serializam alteração/encerramento.
-- 4: bugs, vínculo ao resultado do mesmo projeto e filtros existentes. Retestes/eventos/evidências ainda ausentes, previstos na fase 12.
-- 5: métricas `passed/(passed+failed)`, denominador, filtro de ciclo, global/projeto e estados vazios existentes.
-- 6: parser JUnit seguro, limite de 5 MiB, XXE bloqueado, transação e fixtures existentes. Hash identifica upload manual; identidade externa de execução ainda precisa ser implementada na fase 14.
-- 7: unidade/integração/E2E, tratamento de erro, responsividade e CI existentes. CI remoto, máquina limpa, carga e recuperação não validados nesta evolução.
+- `scripts/start.ps1` prepara o ambiente local; `-Production` compila e executa a versão de produção. Instruções completas no README.
+- Demonstração habilitada somente com `DEMO_MODE=true` e banco exclusivo `_demo`. `dev/start` criam o banco, aplicam migrações e executam o seed automaticamente. Reinicializações preservam alterações.
+- Credenciais públicas: `demo@qametrics.local` / `Demo@12345`. A conta não cria tokens nem altera suas credenciais; dados de outros workspaces permanecem inacessíveis.
+- Carga inicial: 3 clientes, 4 projetos, 80 casos (20 BDD), 12 planos, 32 ciclos (12 automatizados), 20 bugs, 8 retestes e 20 evidências fictícias.
+- Migrações 001–011 aplicadas ao banco local de demonstração e ao banco dedicado de testes. Não há migrações pendentes nesses ambientes.
+- `.env`, bancos, `.local`, ferramentas e diagnósticos não são versionados. Nenhum dado de demonstração foi recriado durante o acabamento.
 
-## Decisões da fase 8
+## Critérios técnicos preservados
 
-- Preservar IDs internos CUID/string e snapshots existentes. Não converter IDs ou regravar resultados antigos.
-- Datas persistidas como instantes; apresentação em `America/Sao_Paulo`, interface pt-BR.
-- Projeto com registros deve ser arquivado; exclusão apenas de projeto vazio. Caso com resultados continua protegido.
-- AuditLog registra ator, workspace, projeto, ação, recurso, data e estado resultante, sem notas, senhas, XML ou tokens. Registro na mesma transação da mutação; erros não produzem eventos de sucesso.
-- IDs do projeto/ator no log são referências históricas textuais para preservar eventos de recursos removidos. Retenção enquanto o workspace existir; nenhuma exclusão de workspace/conta é oferecida pelo produto.
-- Consulta de auditoria autoriza projeto no servidor e limita a resposta a 100 eventos. Sem endpoint para editar/remover eventos.
-- Migração `202610290002_audit` apenas adiciona tabela/índice. Teste executa migração inicial, insere histórico, aplica a nova migração e compara os registros em schema isolado com rollback.
-- Evolução de entidades segue a fase correspondente; não antecipar tabelas das fases 9–18.
-- Riscos de expansão: `workspace.tsx` concentra UI; listas globais carregam todo o histórico; papéis ainda não restringem mutações; ausência de rate limiting. Separar novos módulos e tratar paginação/permissões nas fases correspondentes sem enfraquecer o isolamento atual.
+Autenticação e autorização no servidor; validação de uploads sem executar código; evidências no PostgreSQL; escritas transacionais; chaves idempotentes e controle de versão; snapshots de casos e contexto para manter o histórico. Aprovação usa aprovados/(aprovados+reprovados); release usa a última ocorrência por caso/ambiente. Bloqueados, ignorados e pendentes são separados.
 
-## Validação e commits
+## Validação do acabamento
 
-- Fase 8: lint, typecheck e build passaram; 58 testes unitários, 19 de integração e 2 E2E Chromium passaram.
-- Integração inclui migração com dados antigos em schema transacional isolado, retenção, auditoria atômica, isolamento e paginação de eventos com timestamps iguais. E2E inclui recusa de exclusão de caso histórico.
-- Docker Desktop indisponível: backend falha ao abrir socket dockerInference. Tentativa de reparo foi bloqueada pela revisão automática; não insistir nem alterar configurações do Docker.
-- Validação usou PostgreSQL 17 isolado em 127.0.0.1:55433, banco qa_metrics_evolution_test. Credenciais em .local/evolution-test.env, ignorado. Carregar esse arquivo no ambiente dos testes, sem substituir .env/.env.test.
-- Migração aplicada somente na base isolada; o banco original Docker permanece intacto e precisará de pnpm db:migrate quando voltar a funcionar.
-- Commit local da fase 8: `70089a3` — feat: preservar histórico e auditar operações críticas. Nenhum push realizado.
+- Lint aprovado; TypeScript aprovado; 86 testes unitários e 55 de integração aprovados.
+- Teste do seed atualizado: banco temporário `_demo`, autenticação Better Auth, carga completa, recusa de configuração insegura e preservação das alterações na reinicialização. Somente o banco criado pelo teste é removido.
+- Login demo e navegação em Meu dia, casos, planos, ambientes, bugs, qualidade e integrações conferidos no navegador em desktop/mobile. Após o build final, `pnpm start` iniciou em produção e a mesma conferência passou, sem erros de página.
+- Build de produção aprovado. Oito jornadas E2E verificadas: seis passaram na rodada completa; token/revogação e planejamento passaram na revalidação direcionada após corrigir a espera pelo estado confirmado e restaurar o rótulo de categoria.
+- GitHub Actions: última execução consultada, nº 5 (`62c1c01`), falhou somente no teste antigo do seed (53 integrações passaram). A correção está local; nova execução remota depende de envio autorizado pelo usuário.
 
-### Fase 9 — entregas incrementais
+## Limitações da entrega
 
-- 9.1: suítes/subpastas, tipos, tags normalizadas, estados, códigos persistidos por projeto, busca por código/conteúdo/passos, filtros combinados, páginas de 50 casos, duplicação, movimentação/edição em lote e modelos funcional/API/exploratório.
-- Definições versionadas automaticamente pelo PostgreSQL, incluindo seed e XML; autoria nos serviços autenticados. Códigos alocados sob lock do projeto, nunca reciclados (lacunas são permitidas). Migração atribui números uma única vez aos registros existentes e preserva snapshots anteriores.
-- Casos arquivados não entram em novos ciclos; resultados anteriores continuam disponíveis.
-- Migração `202610290003_case_library` aplicada sobre a base isolada já populada. Teste também migra um fixture do MVP e verifica código/revisão e resultado antigo intactos.
-- 59 testes unitários e 24 de integração passaram; E2E de suíte, tags, revisão e jornada original passou (2 testes). O E2E encontrou uma corrida de navegação ao trocar projeto e aba rapidamente; corrigida no handler compartilhado e validada sem relaxar o teste de isolamento.
-- Lint, TypeScript e build passaram. Commit local da entrega 9.1: feat: organizar biblioteca e preservar revisões de casos (hash no próximo registro).
-- Commit local 9.1: `e96063b` — feat: organizar biblioteca e preservar revisões de casos.
-- 9.2 implementada e validada: formato BDD, parser oficial `@cucumber/gherkin` 42.0.1 + `@cucumber/messages` 34.2.1 (dependência compatível >=34 <35), PT/EN, contexto/regras/outlines/exemplos/tabelas/docstrings, realce e prévia sem executar código.
-- `.feature`: upload UTF-8 de até 100 KiB/200 cenários; prévia e conciliação explícita por chave ou código do projeto. Sem identidade, o usuário escolhe criar/conciliar e a exportação recebe `@qa:UUID`; fonte original e fonte com IDs ficam versionadas. Não usar título/linha como identidade.
-- Fontes importadas podem conter vários cenários; editar um caso atualiza somente o cenário selecionado, mantendo o arquivo da revisão. Cada caso retém sua fonte completa (limite conhecido de armazenamento; deduplicar documentos apenas se medição justificar).
-- Tags `@requirement:CHAVE` e `@automation:CHAVE` guardam referências externas opcionais. Não representam cobertura, execução ou associação já validada pelo runner. A matriz de requisitos e vínculos reais continua na fase 13, ingestão/automação na fase 14.
-- Exportação, revisão e leitura de fonte BDD durante execução manual implementadas. Duplicação cria chave distinta; PATCH tradicional não pode deixar fonte e passos BDD inconsistentes.
-- Classificação omitida em reimportações é preservada, incluindo estado arquivado, prioridade e tags adicionais.
-- Teste direcionado BDD no navegador passou, incluindo arquivo, erro de sintaxe, prévia, persistência, exportação, execução manual e edição sem trocar código. Lint/types/71 unitários passaram. Integração completa (28 testes), E2E completo (3 testes) e build passaram. Capturas desktop/móvel inspecionadas; aguardou-se o fechamento do sidebar antes da captura móvel para não registrar uma transição.
-- Migração `202610290004_gherkin` aplicada somente na base isolada; antigo formato STEPS e snapshots preservados. Dependências fixadas em versões exatas.
-- Commit local 9.2: `6f27413` — feat: validar e gerenciar especificações BDD em Gherkin.
-- 9.3 implementada e validada: CSV UTF-8 (vírgula/ponto e vírgula, aspas e multilinha), mapeamento, prévia paginada com linha física/erros/avisos, CREATE/UPSERT por código/ID, geração atômica de suítes, exportação dos filtros e BDD em CSV.
-- Limites: 256 KiB/1.000 linhas na entrada, 200 suítes novas; exportação de até 1.000 casos/5 MiB. `qaMetricsEncoding=apostrophe-v1` preserva round-trip dos escapes de fórmula, apóstrofos e Gherkin iniciado por tags.
-- IDs externos CSV têm namespace csv:, códigos internos nunca são sobrescritos e títulos não conciliam registros. CSV não gera TestRun/TestResult. Definição automatizada sem passos é criada como rascunho quando nova.
-- Foram validados rollback do lote inválido, revisões/snapshots, hierarquia, referências externas, isolamento, BDD em CSV e reimportação sem trocar código/fonte original.
-- Casos revisados também são preservados mesmo sem ciclos: exclusão exige ausência de resultados e revisão inicial. Corrigida a seleção de ciclos para não considerar casos arquivados e ajustados textos no singular.
-- Verificação completa desta entrega: lint/types/build, 81 unitários, 36 de integração e 4 E2E passaram. Depois foi ampliado o E2E CSV para simular falha de leitura após gravação: UI agora informa que a gravação ocorreu e permite recarregar sem repetir a escrita. Revalidação direcionada desse ajuste passou, assim como lint, typecheck e build após o ajuste.
-- Primeira revalidação do ajuste falhou apenas por seletor de alert ambíguo com o anunciador do Next.js; seletor passou a usar o main do produto. A repetição passou com seletor escopado ao main; não houve nova gravação no retry de leitura.
+Sem módulo completo de requisitos, colaboração avançada, integração bidirecional com issues, IA ou execução remota de testes. Exemplos CI foram fornecidos e o endpoint HTTP é testado; execução em Jenkins/GitHub externos depende da infraestrutura e credenciais de quem instalar. Recuperação de desastre e carga de produção não foram validadas. Não há compromisso de implementar módulos adicionais nesta entrega.
 
-## Próxima ação
+## Commits relevantes deste acabamento
 
-Escopo prioritário concluído em código e validado na base isolada: fases 12, 14 e 15. Fases 13 e 16–18 adiadas, sem implementação. Pendências operacionais: aplicar migrações no banco original quando Docker retornar e executar os exemplos no Jenkins/GitHub reais com as credenciais do usuário.
+- `a4601ee` — teste do seed isolado e ordem de inicialização corrigida.
+- `89ef3ea` — textos e orientação da conta demo revisados; rótulo de categoria restaurado e espera por revogação confirmada no E2E.
+- README e este registro consolidados para a entrega acadêmica; instruções antigas e promessas de fases futuras removidas.
 
-## Ajuste de execução após feedback do usuário
-
-Priorizar funcionalidades prontas, sem obrigação de fragmentar em pequenas entregas (orientação posterior do usuário). Análise apenas do trecho atual, saídas curtas e validações proporcionais; não antecipar fases. Commits locais continuam autorizados e push proibido.
-
-- 10.1 validada: ambientes e versões com criação/edição/arquivamento, autorização por projeto e auditoria transacional. Migração 006 preserva dados anteriores. Quatro testes direcionados de integração/migração, E2E CSV com cadastros, TypeScript e lint passaram. Próxima entrega: planos reutilizáveis com casos ordenados e revisões preservadas.
-
-### Fase 10 validada
-- Planos criados/editados/clonados/arquivados; casos ordenados, categorias, revisões fixadas e atualização explícita; templates Smoke/Regressão/Homologação com casos reais e filtro de tags BDD.
-- Execuções por plano ou seleção, ambientes/releases/builds, responsável validado no workspace, datas, notas e critérios. Snapshot de contexto e revisão preservado em cada execução, inclusive após renomear/arquivar cadastros.
-- Rascunho → em andamento → concluído/cancelado; bloqueio de transições e resultados inválidos; métricas e bugs apresentam o contexto original. Cancelados/rascunhos fora dos indicadores. Migração 007 aditiva, base original intacta.
-- Lint, types e build passaram; suíte de 81 unitários/42 integração passou, seguida dos testes novos de datas e BDD (total atual 82 unitários/43 integração). Cinco jornadas E2E passaram: quatro na suíte e planejamento na revalidação direcionada após corrigir seletor ambíguo de navegação. Rota de planos separada do carregamento de contexto e revalidada no E2E. Captura desktop inspecionada.
-
-- Commit local da fase 10: 1adf1aa — feat: planejar e executar testes por versão e build.
-- Fase 11 concluída: execução guiada/lista, progresso e filtros; resultado real, duração e executor; rascunho no servidor; proteção de alterações não salvas; histórico de resultados/correções; controle de versão e chaves idempotentes em resultados, ciclos e defeitos; fluxo de defeito preenchido a partir de FAILED. Migrações 008/009 somente na base isolada.
-
-### Validação da Fase 11
-- Suíte completa final: lint, 82 testes unitários, 48 de integração, 5 E2E Chromium e build passaram. Typecheck explícito executado ao fechar o commit.
-- E2E simula resposta de rascunho perdida após gravação e retry com a mesma chave; retoma após recarregar, registra falha, cria defeito contextual e corrige com histórico preservado. Testes de integração cobrem concorrência, reuso inválido de chaves, conflito de versão, autorização e migração com dados antigos.
-- Ajustes de compatibilidade validados: edição apenas de notas conserva horário/executor; NOT_RUN não alega execução; encerramento exige resolver rascunhos. UI impede encerrar/fechar/navegar com alterações não salvas; descarte explícito mantém resultado anterior.
-- Foram corrigidos uma corrida ao abrir histórico durante gravação e os waits do E2E para aguardar encerramento real. O teste antigo passou a descartar explicitamente uma mudança não salva antes de encerrar, mantendo a verificação de resultado anterior preservado.
-- Orientação antiga de continuidade substituída pelo escopo prioritário 12/14/15; não avançar para 13 ou 16–18 sem nova solicitação.
-
-## Escopo prioritário atualizado
-Implementar somente 12 → 14 → 15. Fases 13 e 16–18 adiadas explicitamente. Fase 11 commit d990cba.
-Fase 12: evidências privadas em bytea no PostgreSQL (sem arquivos executáveis/public), validação de formato/extensão/tamanho, quotas e remoção autorizada; associação a bug/resultado; prioridade/responsável/esperado-obtido/correção/histórico; retestes independentes com snapshot original, aprovação fecha e reprovação reabre. Migração 010 aplicada somente na base isolada. Dois testes de integração do fluxo + migração passaram; E2E real de upload/correção/reteste/reabertura passou; lint direcionado e build verificados. Próxima ação: Fase 14, ingestão autenticada por token e exemplos Jenkins/GitHub Actions; depois Fase 15. Sem push.
-
-Fase 12 commit cae7e7a. Fase 14 validada: endpoint multipart JUnit com Bearer por projeto, hash de tokens/expiração/revogação/rotação, limite persistente 60/h/token e upload de 5 MiB/30s; identidade provider+externalRunId independente do hash XML; conflito de payload 409; pipeline/build/branch/commit/URL/ambiente/release e datas; exemplos Jenkins/GitHub Actions e configuração remota breve no README; histórico e indício flaky por duas alternâncias em três resultados do mesmo caso/branch/ambiente nas últimas 20 execuções. Testes direcionados: 3 integração/migração + 1 timeout + E2E token/API/deduplicação/revogação e build passaram. Jenkins/GitHub externos não foram executados por ausência de instância/credenciais; endpoint real foi exercitado por HTTP. Próxima ação: Fase 15. Sem módulos de requisitos/colaboração avançada.
-
-## Fechamento do escopo prioritário
-- Fase 12 commit cae7e7a; Fase 14 commit c185367. Fase 15: Meu dia com pendências, bloqueios mais recentes por caso/ambiente/versão, correções aguardando reteste, ciclos e falhas automatizadas recentes; atalhos abrem o ciclo/caso ou defeito autorizado.
-- Dashboard de qualidade: filtros por ambiente/release/período, inventário e bugs por classificações, progresso/histórico, comparação de builds separando pipeline/branch/ambiente/release, amostra real de estabilidade e release com riscos/impedimentos/críticos/pendências e exportação TXT. Sem métricas de requisitos. Sem migração adicional na Fase 15.
-- Critérios explícitos: aprovação passed/(passed+failed); release usa última ocorrência por caso/ambiente e rascunhos como pendências; bloqueados/ignorados ficam separados de aprovados/reprovados. Relatório informa recorte e contexto histórico. Nova gravação após falha de rede mantém idempotência existente.
-- Verificação final: lint/typecheck, 83 unitários, 54 integração, 8 E2E Chromium e build passaram. Depois dos ajustes finais de agrupamento/bloqueios, testes direcionados de produtividade/retestes passaram novamente (4); E2E completo e build também passaram. Um reteste pendente não pode ser sobreposto por outro antes de validação ou cancelamento.
-- Sem push, sem novas dependências. Migrações 010/011 somente no PostgreSQL isolado; Docker original continua pendente. Jenkins/GitHub externos não foram executados; exemplos e endpoint HTTP real foram entregues e o endpoint foi validado. Nenhuma funcionalidade das fases adiadas foi declarada entregue.
-
-## Demonstração automática — 29/10/2026
-Docker PostgreSQL funcionando. Aplicação atual usa qa_metrics_demo (banco dedicado), migrações 001–011 aplicadas incluindo 010/011; configuração anterior guardada somente em .local/pre-demo.env. DEMO_MODE=true no .env local, nunca commitado. dev/start agora preparam banco/migrações/seed automaticamente; guardas exigem banco _demo. Conta pública demo@qametrics.local / Demo@12345; senha pública deliberada, sem tokens/credenciais administrativas. Conta restrita ao workspace próprio mesmo se houver associação indevida, criação de tokens e alteração de perfil/senha bloqueadas.
-Carga fictícia: 3 clientes, 4 projetos, 80 casos (20 BDD), 24 suítes/pastas, 12 planos, 12 ambientes, 8 releases, 32 ciclos incluindo 12 automações JUnit, 20 bugs, 8 retestes e 20 evidências. IDs estáveis e transação por projeto; reinicializações não duplicam nem restauram alterações. Exemplos .feature/XML em examples/demo. Validação rápida: login pelo botão real no navegador, Meu dia e leitura dos dados, 403 para tokens e troca de senha, isolamento simulado, segunda inicialização sem duplicações; lint direcionado e typecheck passaram. Nenhuma suíte extensa executada. Servidor iniciado em http://localhost:3000.
+Não foi realizado push.

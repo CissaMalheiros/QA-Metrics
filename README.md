@@ -1,116 +1,126 @@
 # QA Metrics
 
-Aplicação web local para gerenciar projetos de QA de diferentes clientes. Inclui autenticação por email e senha, workspace pessoal, projetos, casos de teste, ciclos manuais, bugs, dashboards e importação de resultados JUnit XML. A interface está em português do Brasil.
+Aplicação web para organizar o trabalho de QA em projetos de diferentes clientes. Reúne casos de teste, planos, execuções manuais, resultados automatizados, bugs e indicadores em um histórico por projeto. O objetivo é reduzir a dispersão dessas informações em planilhas e relatórios separados.
 
-O projeto usa Next.js App Router, TypeScript, Tailwind, PostgreSQL, Prisma 7, Better Auth, Zod, Vitest e Playwright. Não requer serviços pagos ou publicação na nuvem.
+Projeto desenvolvido no contexto de um Trabalho de Conclusão de Curso. A interface está em português do Brasil e pode ser executada localmente, sem serviços pagos.
 
-## Requisitos
+## Funcionalidades
 
-- Windows com PowerShell, Node.js **24 LTS**, pnpm **10** e Git.
-- Docker Desktop com mecanismo Linux iniciado, ou uma instância PostgreSQL compatível já disponível.
-- Porta 3000 para a aplicação; o Compose usa **5433** para evitar conflito com PostgreSQL local na porta 5432.
+- Autenticação por e-mail e senha, workspace pessoal e isolamento dos dados por usuário e projeto.
+- Biblioteca de casos com códigos permanentes, suítes e subpastas, tags, classificação, revisões, busca e edição em lote.
+- Cenários BDD em português e inglês: edição, validação, importação e exportação de `.feature`. Importação CSV com mapeamento e prévia; exportação dos filtros.
+- Planos reutilizáveis e ciclos com ambiente, release, build, responsável e critérios. Execução guiada ou em lista, rascunhos e histórico de resultados.
+- Bugs ligados a resultados, evidências privadas, correção, reteste e reabertura, preservando o resultado original.
+- Importação manual de JUnit XML e recebimento automático por API autenticada, com exemplos Jenkins e GitHub Actions.
+- Meu dia, dashboards por projeto, comparação de builds, indícios de testes instáveis e resumo de qualidade da release.
 
-Se o pnpm não estiver instalado, execute `npm install --global pnpm@10` após instalar Node 24.
+## Tecnologias e requisitos
 
-## Iniciar no Windows
+Next.js 16 (App Router), React, TypeScript, Tailwind CSS, PostgreSQL 17, Prisma 7, Better Auth, Zod, parser Gherkin do Cucumber, Vitest e Playwright.
 
-Para usar as ferramentas locais preparadas neste projeto, sem alterar o Node ou o pnpm globais:
+Para executar no Windows:
+
+- Node.js **24 LTS**, com npm, e Git.
+- Docker Desktop com mecanismo Linux iniciado. É possível usar PostgreSQL existente, conforme a alternativa abaixo.
+- Porta **3000** livre para a aplicação e **5433** para o banco local. Os E2E usam a porta **3100**.
+
+O script de inicialização prepara Node 24 e pnpm 10 na pasta ignorada `.tools`. Para usar os comandos `pnpm` diretamente, instale pnpm 10 no seu ambiente (`npm install --global pnpm@10`).
+
+## Iniciar a aplicação
+
+Na pasta do repositório:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\start.ps1
 ```
 
-O comando prepara Node 24 e pnpm na pasta `.tools` quando necessário, inicia o banco Docker, aplica migrações e abre o servidor em **http://localhost:3000**. Mantenha o terminal aberto; pressione `Ctrl+C` para interromper o servidor. O banco continua com os dados preservados. Para compilar e executar em modo de produção, acrescente `-Production`.
+O script cria `.env` com credenciais locais aleatórias quando ele ainda não existe, instala as dependências se necessário, inicia o PostgreSQL do Compose, aplica as migrações e inicia a aplicação. Um `.env` existente é preservado.
 
-Se preferir usar Node 24 e pnpm já instalados no sistema, siga os comandos abaixo.
+Acesse [http://localhost:3000](http://localhost:3000). Use **Criar conta** para começar com um workspace vazio ou habilite a demonstração descrita abaixo. Mantenha o terminal aberto; `Ctrl+C` encerra o servidor. O banco preserva os dados entre inicializações.
 
-Na pasta deste repositório:
+Para compilar e executar a versão de produção local:
 
 ```powershell
-node --version
-pnpm --version
+powershell -ExecutionPolicy Bypass -File .\scripts\start.ps1 -Production
+```
+
+### Acessar a demonstração
+
+A demonstração é opcional e exige um banco exclusivo terminado em `_demo`. Antes de iniciar, gere a configuração, caso ainda não exista:
+
+```powershell
+node scripts/init-env.mjs
+```
+
+Em `.env`, mantenha as credenciais geradas e ajuste:
+
+```dotenv
+DEMO_MODE=true
+# Na DATABASE_URL existente, altere somente o nome final do banco de qa_metrics para qa_metrics_demo.
+```
+
+Inicie pelo mesmo `scripts/start.ps1`. O bootstrap cria o banco dedicado e aplica as migrações antes de popular a demonstração. Não é necessário executar `pnpm db:seed`. O usuário PostgreSQL precisa poder criar esse banco; o usuário inicial do Compose já tem essa permissão.
+
+Na tela de login, expanda **Explorar demonstração** e clique em **Entrar como demonstração**, ou use:
+
+| Campo | Valor público de demonstração |
+| --- | --- |
+| E-mail | `demo@qametrics.local` |
+| Senha | `Demo@12345` |
+
+A carga inicial contém 3 clientes fictícios, 4 projetos, 80 casos (20 BDD), 12 planos, ambientes e releases, 32 ciclos (12 automatizados), 20 bugs, 8 retestes e 20 evidências. Todos os dados são fictícios. Reiniciar preserva as alterações e não duplica os registros.
+
+A conta demo usa a autenticação normal, fica restrita ao próprio workspace e não pode criar tokens de integração nem alterar suas credenciais. É compartilhada: não insira informações reais. Não habilite o seed em bancos de produção ou de usuários reais.
+
+### Execução com ferramentas já instaladas
+
+Com Node 24, pnpm 10 e PostgreSQL disponíveis:
+
+```powershell
 node scripts/init-env.mjs
 pnpm install --frozen-lockfile
-docker compose up -d db
+# Configure DATABASE_URL no .env com um banco exclusivo da aplicação.
 pnpm db:migrate
 pnpm dev
 ```
 
-Abra **http://localhost:3000** e use **Criar conta**. A conta nova começa sem projetos; os indicadores são calculados sobre os registros persistidos da conta autenticada.
+No modo demo, `pnpm dev` e `pnpm start` também preparam automaticamente banco, migrações e carga inicial; a migração manual anterior pode ser omitida. Para um PostgreSQL já instalado, não inicie o serviço Docker na mesma porta. O script opcional `scripts/local-postgres.ps1` inicia uma instância local isolada quando os binários PostgreSQL 17 estão instalados; consulte seus parâmetros com `Get-Help` ou no próprio arquivo.
 
-`scripts/init-env.mjs` cria `.env` com uma senha de banco e uma chave de sessão aleatórias, sem exibi-las. Se `.env` já existir, o script preserva o arquivo. Outra opção é copiar `.env.example` para `.env` e preencher os valores. `DATABASE_URL` deve usar a mesma senha e porta do Compose; ao usar caracteres especiais na senha, codifique-os como componente de URL.
+## Roteiro para explorar
 
-Para usar PostgreSQL já instalado, configure `DATABASE_URL` com um banco exclusivo da aplicação e ignore `docker compose up -d db`. A aplicação não altera as credenciais de uma instalação existente.
+1. **Meu dia:** veja pendências entre projetos, bugs aguardando reteste, ciclos abertos e falhas automatizadas. Os atalhos abrem a atividade correspondente.
+2. **Casos de teste:** abra um projeto, filtre a biblioteca e consulte revisões. Experimente a prévia BDD ou CSV antes de salvar. Exemplos `.feature` e XML estão em `examples/demo/`; relatórios de diferentes ferramentas estão em `tests/fixtures/`.
+3. **Planos e ciclos:** reutilize um plano ou selecione casos, informe ambiente/release/build e inicie o ciclo. Registre resultados ou salve rascunhos antes de sair.
+4. **Bugs e retestes:** parta de um resultado reprovado, crie o bug, anexe evidência e marque a correção disponível. Um reteste aprovado fecha o bug; um reprovado reabre. Os resultados antigos permanecem no histórico.
+5. **Qualidade e release:** filtre o recorte, compare builds e confira os dados de automação. Selecione uma versão para consultar sua situação e exportar o resumo TXT.
 
-Se `docker compose` disser que não encontrou o mecanismo Linux, inicie o Docker Desktop, aguarde o status de execução e tente novamente. Não remova o volume para solucionar um problema de inicialização: ele contém os dados persistidos.
+## Critérios e limites
 
-Se Docker não estiver disponível e os binários PostgreSQL 17 estiverem instalados, há uma alternativa isolada no próprio projeto:
+- Aprovação = `aprovados / (aprovados + reprovados) × 100`. Bloqueados, ignorados e não executados são mostrados separadamente. Sem aprovados ou reprovados, a taxa é indefinida.
+- O histórico conta resultados por execução; o mesmo caso pode aparecer em vários ciclos. A visão de release usa a última ocorrência por caso e ambiente, com planejados como pendentes. Rascunhos e cancelados não entram nas taxas de execução.
+- Casos, planos e execuções preservam revisões e contexto histórico. Alterar cadastros não reescreve execuções anteriores. Ciclos encerrados não permitem editar resultados.
+- JUnit: até **5 MiB** por arquivo, XML malformado, DTDs e entidades externas recusados. O conteúdo nunca é executado. A importação manual deduplica conteúdo idêntico no mesmo projeto.
+- BDD: UTF-8, até **100 KiB**; validação de sintaxe, sem executar step definitions. Identidades explícitas permitem conciliar reimportações; títulos não identificam casos.
+- CSV: UTF-8, até **256 KiB/1.000 registros**, vírgula ou ponto e vírgula e campos multilinha. Erros impedem a gravação do lote inteiro. A exportação aceita até 1.000 casos/5 MiB e protege fórmulas de planilha; preserve `qaMetricsEncoding` para reimportar os escapes corretamente.
+- Evidências: PNG/JPEG/PDF/TXT/LOG, até **5 MiB** por arquivo, **25 MiB e 100 arquivos por projeto**. Armazenadas no PostgreSQL e disponíveis por download autenticado.
+- Testes instáveis: indício de pelo menos duas alternâncias em três resultados do mesmo caso, branch e ambiente, na amostra recente. Pode refletir correções; não é diagnóstico definitivo.
 
-```powershell
-node scripts/init-env.mjs
-powershell -ExecutionPolicy Bypass -File scripts/local-postgres.ps1 -Action Start
-pnpm db:migrate
-pnpm dev
-```
+## Integração CI/CD
 
-Esse script usa as credenciais e `POSTGRES_PORT` de `.env`, escuta somente em `127.0.0.1` e guarda os dados em `.local/postgres`, ignorado pelo Git. Ele não modifica o serviço PostgreSQL instalado. Use `-PostgresBin 'C:\caminho\PostgreSQL\bin'` se necessário. Para consultar ou interromper somente essa instância, use `-Action Status` ou `-Action Stop`. Docker e essa alternativa não podem ocupar a mesma porta simultaneamente.
+Uma conta própria pode gerar um token por projeto em **Integrações CI/CD**. O segredo é exibido uma vez, armazenado como hash e permite apenas enviar resultados àquele projeto. Há expiração (1–365 dias), revogação e limite de 60 relatórios/hora por token.
 
-## Dados opcionais de demonstração
+O Jenkins ou GitHub Actions executa os testes; o QA Metrics recebe o JUnit. Exemplos:
 
-A demonstração é criada automaticamente ao iniciar com `DEMO_MODE=true`, somente em banco dedicado cujo nome termina em `_demo`. O fluxo normal de inicialização aplica migrações e cria a conta `demo@qametrics.local` / `Demo@12345`, quatro projetos, três clientes fictícios e 80 casos, incluindo BDD, planos, ciclos, automação, bugs, retestes e evidências. Reinicializações preservam alterações. Não habilite em banco de produção. A conta pública não pode criar tokens de integração nem alterar suas credenciais e fica restrita ao próprio workspace.
+- [Jenkinsfile](examples/ci/Jenkinsfile): credencial Secret Text chamada `qa-metrics-ingest`; configure os parâmetros de URL, ambiente e release.
+- [GitHub Actions](examples/ci/github-actions.yml): secret `QA_METRICS_TOKEN` e variáveis `QA_METRICS_URL`, `QA_RELEASE` e `QA_ENVIRONMENT`.
 
+Os exemplos exigem agente Linux com Node 24, pnpm acessível via Corepack, curl e dependências do projeto testado. Adapte o comando Playwright/reporter ao seu projeto. O envio ocorre mesmo quando os testes falham, desde que o relatório tenha sido gerado. A aplicação não executa esses arquivos.
 
-## Fluxos principais
+Endpoint: `POST /api/integrations/junit`, Bearer token, multipart com `file`, `provider` (`jenkins`, `github-actions` ou `other`) e `externalRunId`. Metadados opcionais: pipeline, build, branch, commit, buildUrl, environment, release, startedAt e finishedAt. O projeto é definido pelo token; `projectId` não é aceito. A mesma identidade e conteúdo retornam duplicação; conteúdo diferente para a mesma identidade retorna conflito 409. Builds diferentes podem enviar XML idêntico como execuções distintas. Limites: 5 MiB e 30 segundos por envio.
 
-1. **Projetos e casos:** crie um projeto informando nome e cliente. Abra-o, selecione **Casos de teste** e cadastre título, pré-condições, passos e resultado esperado. Crie outro projeto e troque pela navegação para verificar os contextos separados.
-2. **Ciclo e bug:** em **Ciclos**, crie um ciclo selecionando os casos do projeto. Registre resultados e observações. Cadastre um bug com severidade, status e, opcionalmente, resultado do mesmo projeto. Encerre o ciclo para preservar seu histórico.
-3. **JUnit XML:** abra **Importar XML**, selecione um relatório e importe. Os arquivos representativos em `tests/fixtures/` permitem experimentar formatos Playwright e Cypress. Os resultados aparecem em um ciclo encerrado com origem `JUNIT_IMPORT`.
+Para agentes externos, disponibilize a aplicação por HTTPS com certificado válido, endereço alcançável e `BETTER_AUTH_URL` correspondente. O processo deve escutar a interface acessível ao proxy (por exemplo `pnpm exec next start --hostname 0.0.0.0 --port 3000`). `localhost` na pipeline é o próprio agente. Não exponha a porta do PostgreSQL. A execução dos exemplos em um Jenkins ou repositório externo depende da infraestrutura e credenciais de quem instalar o projeto.
 
-## Métricas e histórico
-
-### Biblioteca de casos
-
-Os casos têm códigos permanentes por projeto (`TC-001`, `TC-002` etc.). Filtros e ordenação não mudam esses códigos, e números de casos removidos não são reutilizados. A biblioteca combina busca por código ou conteúdo com filtros de suíte, prioridade, tipo, origem, estado e tag, em páginas de 50 casos.
-
-Use **Gerenciar suítes** para criar e mover pastas/subpastas. A edição do caso permite classificá-lo, associá-lo a uma suíte e informar tags separadas por vírgula. Na criação, há modelos funcional, API e exploratório. A seleção de casos permite mover, classificar, arquivar ou substituir tags em lote, com validação atômica no servidor.
-
-**Duplicar** cria outro código em estado de rascunho. **Revisões** mostra definições anteriores; a edição ou o arquivamento não altera snapshots de execuções. Casos arquivados não podem ser incluídos em novos ciclos. Suítes com conteúdo só podem ser excluídas após mover seus casos e subpastas.
-
-### Cenários BDD / Gherkin
-
-Em **BDD / .feature**, escreva ou envie uma especificação UTF-8 de até 100 KiB. O parser oficial do Cucumber valida português (`# language: pt`) e inglês, incluindo contexto, regras, esquemas, exemplos, tabelas e docstrings. A prévia exibe passos e exemplos; nenhum código ou step definition é executado.
-
-Cada cenário deve ter identidade explícita (`@id:login-principal`, `@qa:UUID` ou `@TC-001`) para conciliação automática. Sem chave, escolha criar um novo caso ou informe o número de um caso do mesmo projeto. A ferramenta adiciona tags estáveis na fonte exportada e preserva a fonte recebida nas revisões. Título e posição no arquivo não são usados como identidade. Reimportar requer confirmar o destino; atualizar um caso mantém seus códigos e resultados anteriores.
-
-O editor mostra a fonte com realce e permite conciliar alterações de identidade. Ao editar um caso, selecione qual cenário do arquivo atualiza aquele caso; os demais casos mantêm suas próprias revisões. **Exportar .feature** baixa a fonte daquela revisão com idioma, contexto, exemplos e tags. Durante um ciclo manual, consulte a fonte registrada no snapshot da execução.
-
-Tags como `@requirement:REQ-LOGIN` e `@automation:login-principal` registram referências opcionais. Especificar um BDD ou informar uma referência de automação não significa que o teste foi automatizado, executado ou aprovado. A rastreabilidade completa de requisitos e a ingestão automatizada serão entregues nas fases correspondentes.
-
-### Importação e exportação CSV
-
-**Importar CSV** aceita UTF-8 com vírgula ou ponto e vírgula, aspas escapadas e campos multilinha, até 256 KiB/1.000 registros. Mapeie as colunas e gere a prévia: ela informa ações, avisos e erros pela linha física do arquivo. Um erro impede a gravação do lote inteiro, inclusive a criação de pastas. Suítes são caminhos como `Checkout/Pagamento`; até 200 novas suítes podem ser criadas por lote.
-
-No modo **Criar novos**, códigos recebidos não sobrescrevem casos existentes. No modo **Atualizar por código/ID**, códigos pertencem ao projeto selecionado e identificações externas conciliam reimportações; títulos não são identidade. Informações não mapeadas são preservadas na atualização. Definições JUnit sem passos manuais são importadas como rascunhos quando novas e não geram resultados. Casos BDD podem transportar `format=BDD`, `gherkinSource` e `gherkinKey`; a fonte é validada novamente, mantendo contexto, idioma e revisões.
-
-**Exportar CSV dos filtros** exporta até 1.000 casos/5 MiB do recorte atual, incluindo definições BDD. Conteúdos que poderiam virar fórmulas de planilha são escapados como texto. A coluna `qaMetricsEncoding` permite reimportar esse formato sem perder apóstrofos ou fontes iniciadas por tags; preserve essa coluna ao editar uma exportação. Para reimportar arquivos grandes, divida-os em lotes dentro do limite de 256 KiB.
-
-A taxa de aprovação é `aprovados / (aprovados + reprovados) × 100`. O denominador é mostrado na interface. `BLOCKED`, `SKIPPED` e `NOT_RUN` aparecem separadamente e não entram no denominador. Quando não há aprovados ou reprovados, a taxa é indefinida, apresentada como ausência de resultados.
-
-O dashboard informa o escopo dos ciclos exibidos e permite selecionar um ciclo. A visão global agrega somente projetos acessíveis à conta; a visão de projeto usa somente seus próprios ciclos e bugs. Os totais de múltiplos ciclos representam resultados de execuções, portanto o mesmo caso pode ser contado em ciclos diferentes.
-
-Cada resultado guarda título e snapshot do caso no momento da criação do ciclo. Editar o caso depois não modifica esse snapshot. Ciclos encerrados não aceitam alterações nos resultados. Casos referenciados por resultados históricos não podem ser excluídos; somente projetos sem registros podem ser excluídos. Projetos com casos, ciclos ou bugs devem ser arquivados.
-
-## Importação segura
-
-- O importador lê XML; nunca executa os testes, scripts ou comandos descritos no arquivo.
-- Limite de **5 MiB (5.242.880 bytes)**. DTDs, declarações de entidades externas e XML malformado são recusados.
-- Aceita `testsuite` e `testsuites`, com `testcase`, `failure`, `error` e `skipped`.
-- Sem falha, erro ou skip: `PASSED`. `failure` ou `error`: `FAILED`. `skipped`: `SKIPPED`. A duração em segundos é convertida para milissegundos e as mensagens são limitadas.
-- A identidade de um caso importado deriva deterministicamente do caminho de suites, `classname` e `name`; o parser usa uma representação sem ambiguidades e hash para evitar colisões entre combinações distintas. Identidades repetidas dentro do mesmo arquivo são recusadas.
-- O SHA-256 do conteúdo deduplica reimportações idênticas **no mesmo projeto**. O mesmo XML pode ser importado em outro projeto sem compartilhar dados.
-- A gravação do ciclo e de seus resultados ocorre em transação. Mensagens importadas são exibidas como texto.
-
-## Verificações
+## Testes e validação
 
 ```powershell
 pnpm lint
@@ -119,98 +129,59 @@ pnpm test
 pnpm build
 ```
 
-`pnpm test` executa testes unitários de validação, cálculo de métricas e parser XML. `pnpm typecheck` regenera os tipos Prisma e Next.js antes de verificar TypeScript. O build também regenera o Prisma Client. Lint é uma etapa separada do build, como exigido pelo Next.js 16.
+`typecheck` regenera os tipos Prisma/Next.js; o build também gera o Prisma Client. Os testes unitários cobrem validação, métricas, importadores e timeout de uploads.
 
-### Integração e navegador com banco exclusivo
+### Integração e E2E
 
-Os testes de integração e E2E exigem `TEST_DATABASE_URL` e recusam bancos cujo nome não termine em `_test`. Crie um banco PostgreSQL dedicado — por exemplo `qa_metrics_test` — antes de executar. Usando o serviço do Compose:
+Use um banco exclusivo terminado em `_test`. Com o Compose iniciado:
 
 ```powershell
 docker compose exec db sh -c 'createdb -U "$POSTGRES_USER" qa_metrics_test'
 ```
 
-Defina a URL com as credenciais do banco local em `.env.test` (arquivo ignorado pelo Git):
+Se ele já existe, não é necessário recriá-lo. Crie `.env.test` (ignorado pelo Git) com a URL e a mesma senha local:
 
 ```dotenv
 TEST_DATABASE_URL=postgresql://USUARIO:SENHA@localhost:5433/qa_metrics_test
 ```
 
-Migre **esse banco**, preservando a variável normal da aplicação:
+Migre o banco de testes sem substituir a configuração permanente da aplicação:
 
 ```powershell
-$appDatabaseUrl = $env:DATABASE_URL
-$env:DATABASE_URL = 'postgresql://USUARIO:SENHA@localhost:5433/qa_metrics_test'
-pnpm db:migrate
-if ($null -eq $appDatabaseUrl) { Remove-Item Env:DATABASE_URL } else { $env:DATABASE_URL = $appDatabaseUrl }
+$previousDatabaseUrl = $env:DATABASE_URL
+try {
+  $env:DATABASE_URL = 'postgresql://USUARIO:SENHA@localhost:5433/qa_metrics_test'
+  pnpm db:migrate
+} finally {
+  if ($null -eq $previousDatabaseUrl) { Remove-Item Env:DATABASE_URL } else { $env:DATABASE_URL = $previousDatabaseUrl }
+}
 pnpm test:integration
 pnpm exec playwright install chromium
+# Interrompa o servidor de desenvolvimento da porta 3000 antes dos E2E.
 pnpm test:e2e
 ```
 
-Os testes de integração usam PostgreSQL real, com duas contas, referências cruzadas, snapshots, bloqueio de ciclos encerrados e deduplicação. A limpeza remove somente registros dos usuários criados pelo próprio teste. Os E2E iniciam um servidor próprio na porta **3100**, criam contas exclusivas no banco de testes e cobrem cadastro, logout/login, dois projetos, caso, execução, bug e upload XML. Diagnósticos de falha ficam em `test-results/`; não são versionados.
+Os testes de integração e E2E recusam bancos sem sufixo `_test`. O teste do seed cria, migra e remove somente seu próprio banco temporário `_demo`, verificando as proteções e a idempotência; o usuário de testes precisa de permissão `CREATEDB`.
 
-O workflow `.github/workflows/checks.yml` prepara PostgreSQL temporário e executa lint, tipos, testes unitários, integração, build e E2E. A existência do workflow não significa que ele já foi executado no GitHub: os resultados locais devem ser conferidos na entrega.
+Os E2E iniciam um servidor próprio na porta 3100 e cobrem autenticação, projetos, casos, BDD, CSV, planejamento, execução, evidências/retestes e CI/CD. Evite dois servidores de desenvolvimento no mesmo checkout: ambos usam `.next/dev`. Os diagnósticos ficam em `test-results/` e não são versionados.
 
-## Scripts e estrutura
+O workflow [.github/workflows/checks.yml](.github/workflows/checks.yml) executa lint, tipos, unitários, integração, build e E2E com PostgreSQL temporário. Consulte o [GitHub Actions](https://github.com/CissaMalheiros/QA-Metrics/actions) para os resultados remotos; resultados locais e remotos são independentes.
 
-| Comando | Finalidade |
+## Estrutura e manutenção
+
+| Diretório | Conteúdo |
 | --- | --- |
-| `pnpm dev` | Servidor de desenvolvimento em localhost:3000 |
-| `pnpm build` / `pnpm start` | Compilar e executar a aplicação compilada |
-| `pnpm db:generate` | Regenerar Prisma Client |
-| `pnpm db:migrate` | Aplicar migrações versionadas já incluídas |
-| `pnpm db:seed` | Mesma demonstração idempotente usada automaticamente na inicialização |
-| `pnpm test:integration` | Regras e autorização com PostgreSQL real |
-| `pnpm test:e2e` | Jornada pelo navegador Chromium |
+| `src/app`, `src/components` | Rotas e interface |
+| `src/domain`, `src/server` | Validação, autorização e serviços |
+| `src/lib`, `src/importers` | Autenticação, banco e importadores |
+| `prisma` | Schema, migrações e demonstração |
+| `tests`, `examples` | Verificações e exemplos de uso |
+| `scripts` | Preparação e inicialização local |
 
-Código de interface em `src/app` e `src/components`; autenticação e banco em `src/lib`; autorização e serviços em `src/server`; regras e schemas em `src/domain`; parser em `src/importers`; schema e migrações em `prisma`; testes em `tests`.
+Aplique migrações versionadas com `pnpm db:migrate`. Não substitua o histórico por `prisma db push`. `.env`, bancos, ferramentas locais e diagnósticos são privados/gerados e ficam fora do Git.
 
-Para alterar o schema durante desenvolvimento, use `pnpm exec prisma migrate dev --name nome_da_alteracao` e versione a migração resultante. Para aplicar alterações existentes, use `pnpm db:migrate`. Não use `prisma db push` para substituir o histórico.
+O Compose mantém um volume persistente. `docker compose stop` preserva os dados. Antes de atualizar uma instalação real, faça backup com `pg_dump -Fc`, copie-o para armazenamento privado e verifique a restauração em outro banco. Não use remoção de volumes ou `migrate reset` como solução de inicialização. Evidências estão incluídas no backup do banco.
 
-## Persistência e escopo
+## Limitações
 
-### Migrações e recuperação
-
-Antes de atualizar uma instância com dados, gere um backup em formato custom dentro do container e copie-o para armazenamento privado. No PowerShell, evite redirecionar saída binária com `>`:
-
-```powershell
-docker compose exec -T db sh -c 'pg_dump -U "$POSTGRES_USER" -Fc "$POSTGRES_DB" -f /tmp/qa-metrics.dump'
-New-Item -ItemType Directory -Force .local/backups
-docker compose cp db:/tmp/qa-metrics.dump .local/backups/qa-metrics.dump
-```
-
-Guarde uma cópia fora do computador. Para verificar uma restauração, crie um banco novo terminado em `_test` (nunca sobrescreva o banco em uso):
-
-```powershell
-docker compose exec -T db sh -c 'createdb -U "$POSTGRES_USER" qa_metrics_restore_test'
-docker compose cp .local/backups/qa-metrics.dump db:/tmp/qa-metrics-restore.dump
-docker compose exec -T db sh -c 'pg_restore -U "$POSTGRES_USER" --no-owner --exit-on-error -d qa_metrics_restore_test /tmp/qa-metrics-restore.dump'
-```
-
-Verifique registros e uma jornada antes de usar o banco restaurado. Para rollback de atualização, pare a aplicação, use a versão anterior do código e um banco restaurado compatível; não remova tabelas nem execute `migrate reset` no banco real. Esses comandos são o procedimento; a validação completa de recuperação será registrada na fase 17.
-
-Alterações críticas realizadas pelos serviços autenticados geram eventos transacionais. A consulta `GET /api/data/projects/:projectId/audit` exige acesso ao projeto e retorna até 100 eventos, sem conteúdo de senhas, XML ou observações. Use `?before=ID_DO_ULTIMO_EVENTO` para a página seguinte.
-
-O PostgreSQL do Compose usa volume persistente. `docker compose stop` interrompe o banco preservando os dados. O arquivo `.env`, banco local, diretórios gerados e diagnósticos de testes não devem ser adicionados ao Git. Guarde o `.env` de forma privada; a chave de sessão é necessária para manter as sessões existentes.
-
-Planos de teste podem reunir casos tradicionais e BDD, com ordem, categoria e revisão fixa. Os templates adicionam casos reais: Smoke usa `@smoke`, Regressão usa casos prontos e Homologação usa casos funcionais prontos. Atualizar um caso não muda silenciosamente os planos; use a ação de atualizar sua revisão no plano.
-
-Cadastre ambientes e versões por projeto e informe build, responsável, datas previstas, observações e critérios ao criar uma execução. Cada execução mantém suas próprias revisões e uma cópia do contexto: renomear ou arquivar cadastros não reescreve o histórico. Rascunhos precisam ser iniciados antes de registrar resultados; ciclos concluídos ou cancelados ficam preservados. Rascunhos e cancelados não entram nos indicadores de execução. O ambiente textual do MVP e ciclos anteriores continuam preservados; não se infere contexto ausente nos dados antigos.
-
-A execução manual oferece modo guiado, filtros de resultados, rascunhos salvos no servidor, resultado real, observações, duração e executor. Salve o rascunho antes de interromper; alterações ainda não salvas bloqueiam a navegação interna e acionam o aviso do navegador ao sair. Registros e correções mantêm histórico com autoria, e tentativas repetidas com a mesma chave não duplicam resultados ou defeitos. Uma falha salva pode abrir um defeito já preenchido e vinculado ao resultado original.
-
-Este MVP não inclui execução remota de testes, ingestão por API pública, integrações Jira/GitHub, colaboração avançada, IA, anexos de vídeo ou cobrança. A importação manual de XML funciona sem essas integrações.
-
-Documentação consultada para a configuração: [Prisma 7](https://www.prisma.io/docs/guides/upgrade-prisma-orm/v7), [Better Auth com Prisma](https://better-auth.com/docs/adapters/prisma), [Better Auth com Next.js](https://better-auth.com/docs/integrations/next) e [instalação do Next.js](https://nextjs.org/docs/app/getting-started/installation).
-
-Evidências ficam privadas no PostgreSQL, incluídas no backup do banco, e são servidas somente como download autenticado. Formatos: PNG/JPEG/PDF/TXT/LOG; 5 MiB por arquivo, 25 MiB e 100 arquivos por projeto. Em Bugs, abra o título para acompanhar prioridade/responsável, anexar evidências, marcar correção disponível, criar um novo ciclo de reteste e validar para fechar ou reabrir. O resultado original permanece intacto.
-
-CI/CD: em **Integrações CI/CD**, gere um token, copie-o uma vez e guarde como Secret Text `qa-metrics-ingest` no Jenkins, ou secret `QA_METRICS_TOKEN` no GitHub. Exemplos copiáveis em `examples/ci/Jenkinsfile` e `examples/ci/github-actions.yml`; configure URL, versão e ambiente. Requer agente com Node 24/Corepack, curl e dependências do projeto de testes. O exemplo Playwright gera `test-results/junit.xml`; adapte o comando/reporter ao projeto testado. Publicação ocorre mesmo após falha dos testes. Arquivos de exemplo não são executados pelo QA Metrics.
-
-Contrato: `POST /api/integrations/junit`, `Authorization: Bearer TOKEN`, multipart `file` (.xml), `provider` (jenkins/github-actions/other), `externalRunId` obrigatório; opcionais pipeline/build/branch/commit/buildUrl/environment/release/startedAt/finishedAt. Projeto é definido pelo token; enviar projectId é recusado. Mesma identidade + conteúdo retorna 200/duplicate; novo resultado 201; identidade reutilizada com conteúdo diferente retorna 409. Expiração de 1–365 dias, revogação e limite de 60 envios/hora/token. Envio limitado a 5 MiB e 30 segundos. XML idêntico em builds distintas gera ciclos separados.
-
-Para pipeline externa, publique a aplicação atrás de HTTPS com certificado válido, endereço alcançável pelo agente e `BETTER_AUTH_URL` correspondente. O servidor Next deve escutar a interface de rede do proxy (ex.: `pnpm exec next start --hostname 0.0.0.0 --port 3000`). `localhost` na pipeline aponta para o agente, não para sua máquina; use DNS/VPN ou proxy HTTPS encaminhando à aplicação. Não publique a porta do PostgreSQL. Revogar o token bloqueia novos envios; relatórios anteriores permanecem.
-
-Referências dos exemplos: [Jenkins Pipeline](https://www.jenkins.io/doc/book/pipeline/syntax/) e [GitHub Actions](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax).
-
-Meu dia reúne pendências e ciclos de todos os projetos acessíveis, últimos bloqueios por caso/ambiente, bugs aguardando reteste e falhas de relatórios automatizados recebidos nos últimos sete dias, com atalhos para o contexto correto. Em Qualidade e release, filtre ambiente, versão e período de criação dos ciclos; compare builds sem misturar pipeline/branch/ambiente/versão e exporte um resumo TXT. Aprovação = aprovados / (aprovados + reprovados); bloqueados/ignorados/não executados ficam separados. O histórico conta cada resultado por execução; a situação da release usa a última ocorrência por caso/ambiente, incluindo planejados como pendentes. Não há métricas de requisitos.
+Não inclui execução remota de testes, módulo completo de requisitos/rastreabilidade, colaboração avançada, integração bidirecional com Jira/GitHub Issues, IA, vídeos como evidência ou cobrança. O recebimento JUnit por API está implementado e não depende desses módulos. Não há validação de recuperação de desastre nem de carga em escala de produção. O uso público requer configuração de infraestrutura, HTTPS e operação de backups.
