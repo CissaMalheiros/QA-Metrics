@@ -11,6 +11,8 @@ test-results/
 *.tsbuildinfo
 *.log
 .local/
+.vercel/
+.neon
 .agents/
 skills-lock.json
 /AGENTS.md

@@ -4,6 +4,8 @@ Aplicação web para organizar o trabalho de QA em projetos de diferentes client
 
 Projeto desenvolvido no contexto de um Trabalho de Conclusão de Curso. A interface está em português do Brasil e pode ser executada localmente, sem serviços pagos.
 
+Para publicação gratuita na Vercel Hobby com PostgreSQL Neon Free, consulte o [guia de deploy](docs/deploy-vercel-neon.md). A preparação do banco remoto é explícita, fora das requisições e do build.
+
 ## Funcionalidades
 
 - Autenticação por e-mail e senha, workspace pessoal e isolamento dos dados por usuário e projeto.
@@ -70,7 +72,7 @@ Na tela de login, expanda **Explorar demonstração** e clique em **Entrar como 
 
 A carga inicial contém 3 clientes fictícios, 4 projetos, 80 casos (20 BDD), 12 planos, ambientes e releases, 32 ciclos (12 automatizados), 20 bugs, 8 retestes e 20 evidências. Todos os dados são fictícios. Reiniciar preserva as alterações e não duplica os registros.
 
-A conta demo usa a autenticação normal, fica restrita ao próprio workspace e não pode criar tokens de integração nem alterar suas credenciais. É compartilhada: não insira informações reais. Não habilite o seed em bancos de produção ou de usuários reais.
+A conta demo usa a autenticação normal e fica restrita ao próprio workspace, em modo somente leitura. Prévias e downloads continuam disponíveis; alterações de dados, tokens, credenciais e perfil são bloqueadas. Crie uma conta própria para testar gravações em um workspace separado. Não habilite o seed em bancos de usuários reais.
 
 ### Execução com ferramentas já instaladas
 
@@ -84,7 +86,7 @@ pnpm db:migrate
 pnpm dev
 ```
 
-No modo demo, `pnpm dev` e `pnpm start` também preparam automaticamente banco, migrações e carga inicial; a migração manual anterior pode ser omitida. Para um PostgreSQL já instalado, não inicie o serviço Docker na mesma porta. O script opcional `scripts/local-postgres.ps1` inicia uma instância local isolada quando os binários PostgreSQL 17 estão instalados; consulte seus parâmetros com `Get-Help` ou no próprio arquivo.
+No modo demo local, `pnpm dev` e `scripts/start.ps1` preparam automaticamente banco, migrações e carga inicial; a migração manual anterior pode ser omitida. `pnpm start` somente inicia o servidor compilado. Para um banco demo remoto já criado, prepare uma vez com `pnpm db:setup:demo`, usando variáveis daquele ambiente. Para um PostgreSQL já instalado, não inicie o serviço Docker na mesma porta. O script opcional `scripts/local-postgres.ps1` inicia uma instância local isolada quando os binários PostgreSQL 17 estão instalados; consulte seus parâmetros com `Get-Help` ou no próprio arquivo.
 
 ## Roteiro para explorar
 

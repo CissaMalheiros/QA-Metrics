@@ -644,7 +644,7 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
           <div className="topbar-right">
             <span className="local-pill">
               <span />
-              Local
+              Conectado
             </span>
             <span className="topbar-avatar">
               {user.name.slice(0, 1).toUpperCase()}
@@ -652,6 +652,7 @@ function WorkspaceContent({ user }: { user: { name: string; email: string } }) {
           </div>
         </header>
         <main id="main-content" className="main-content">
+          {user.email === DEMO_EMAIL && <p role="status">Demonstração somente leitura · dados fictícios. Para testar alterações, saia e crie uma conta própria.</p>}
           <div className="page-heading">
             <div>
               <div className="eyebrow">

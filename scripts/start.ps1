@@ -47,6 +47,10 @@ if ($demoMode -ne 'true') {
   if ($LASTEXITCODE -ne 0) { throw 'Não foi possível aplicar as migrações.' }
 }
 if ($Production) {
+  if ($demoMode -eq 'true') {
+    & $nodeBin (Join-Path $projectRoot 'node_modules/tsx/dist/cli.mjs') (Join-Path $PSScriptRoot 'bootstrap.ts')
+    if ($LASTEXITCODE -ne 0) { throw 'Não foi possível preparar a demonstração local.' }
+  }
   & $nodeBin $pnpmScript build
   if ($LASTEXITCODE -ne 0) { throw 'A compilação não foi concluída.' }
   & $nodeBin $pnpmScript start

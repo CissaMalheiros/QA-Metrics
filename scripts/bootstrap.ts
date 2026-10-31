@@ -2,6 +2,8 @@ import "dotenv/config";
 import { execFileSync } from "node:child_process";
 import { Client } from "pg";
 if (process.env.DEMO_MODE === "true") {
+  // Remote databases are prepared explicitly with db:setup:demo, never by a server startup.
+  if (process.env.VERCEL || !["localhost", "127.0.0.1"].includes(new URL(process.env.DATABASE_URL ?? "").hostname)) process.exit(0);
   if (!new URL(process.env.DATABASE_URL ?? "").pathname.endsWith("_demo")) throw new Error("Demonstração exige banco dedicado com nome terminado em _demo.");
   const url = new URL(process.env.DATABASE_URL!);
   const database = decodeURIComponent(url.pathname.slice(1));

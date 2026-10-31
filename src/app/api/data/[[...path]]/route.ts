@@ -10,6 +10,7 @@ import * as workflow from "@/server/bug-workflow";
 import * as integrations from "@/server/integrations";
 import * as productivity from "@/server/productivity";
 import { readLimitedBody } from "@/server/http";
+import { assertDemoAccess } from "@/server/demo-access";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,6 +28,7 @@ async function handle(
     const method = request.method;
     if (method !== "GET") assertSameOrigin(request);
     const path = (await context.params).path ?? [];
+    assertDemoAccess(session.user.email, method, path);
     const [collection, projectId, resource, resourceId, action, actionId, detail] =
       path;
     let result: unknown;

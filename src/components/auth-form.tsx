@@ -167,13 +167,12 @@ export function AuthForm({ mode, demo = false }: { mode: "login" | "signup"; dem
             <div className="auth-demo-content">
             <p>Conheça a plataforma com projetos, testes e indicadores fictícios já preenchidos.</p>
             <dl className="auth-demo-credentials"><div><dt>E-mail</dt><dd>demo@qametrics.local</dd></div><div><dt>Senha</dt><dd>Demo@12345</dd></div></dl>
-            <small>Conta pública compartilhada. Todos os dados são fictícios; não insira informações reais.</small>
+            <small>Conta pública somente leitura, com dados fictícios. Crie uma conta própria para testar alterações em um espaço separado.</small>
             <Button variant="outline" disabled={busy} onClick={async () => { setBusy(true); setError(""); try { const result = await authClient.signIn.email({ email: "demo@qametrics.local", password: "Demo@12345" }); if (result.error) setError("Demonstração indisponível. Tente novamente."); else router.replace("/dashboard?tab=day"); } catch { setError("Não foi possível conectar à demonstração."); } finally { setBusy(false); } }}>Entrar como demonstração</Button>
             </div>
           </details>}
           <div className="auth-security">
-            <ShieldCheck size={15} /> Ambiente local · Conexão com seu
-            PostgreSQL
+            <ShieldCheck size={15} /> Acesso autenticado · Dados protegidos por conta
           </div>
         </div>
         <footer>
