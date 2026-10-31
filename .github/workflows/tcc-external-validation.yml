@@ -1,0 +1,170 @@
+name: Integração externa JUnit
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  external-validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: qa_metrics
+          POSTGRES_PASSWORD: isolated-runner-only
+          POSTGRES_DB: qa_metrics_external_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U qa_metrics -d qa_metrics_external_test"
+          --health-interval 5s --health-timeout 5s --health-retries 15
+    env:
+      DATABASE_URL: postgresql://qa_metrics:isolated-runner-only@localhost:5432/qa_metrics_external_test
+      DEMO_MODE: 'false'
+      BETTER_AUTH_URL: http://localhost:3000
+      NEXT_TELEMETRY_DISABLED: '1'
+      EXTERNAL_JUNIT: external-evidence/junit.xml
+      EXPERIMENT_OUTPUT: external-evidence
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Preparar autenticação efêmera
+        run: |
+          secret=$(node -p "require('node:crypto').randomBytes(48).toString('hex')")
+          echo "::add-mask::$secret"
+          echo "BETTER_AUTH_SECRET=$secret" >> "$GITHUB_ENV"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:migrate
+      - run: pnpm build
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Executar suíte de aplicação externa fictícia
+        run: |
+          mkdir -p "$RUNNER_TEMP/pedidos-ficticios" external-evidence
+          cat > "$RUNNER_TEMP/pedidos-ficticios/pedido.mjs" <<'EXTERNAL_EOF'
+          export function subtotal(itens) {
+            return itens.reduce((s, {preco, quantidade}) => {
+              if (!Number.isInteger(preco) || preco < 0 || !Number.isInteger(quantidade) || quantidade <= 0) throw new RangeError('Item inválido');
+              return s + preco * quantidade;
+            }, 0);
+          }
+          export function desconto(valor, percentual) { return Math.round(valor * (100-percentual)/100); }
+          // Defeito deliberado desta aplicação fictícia: não aplica frete grátis.
+          export function frete() { return 500; }
+
+          EXTERNAL_EOF
+          cat > "$RUNNER_TEMP/pedidos-ficticios/pedido.test.mjs" <<'EXTERNAL_EOF'
+          import {test,describe} from 'node:test';
+          import assert from 'node:assert/strict';
+          import {subtotal, desconto, frete} from './pedido.mjs';
+          describe('Pedidos fictícios — suíte externa',()=>{
+          test('Somar itens de um pedido',()=>assert.equal(subtotal([{preco:1500,quantidade:2},{preco:1000,quantidade:1}]),4000));
+          test('Aplicar desconto de dez por cento',()=>assert.equal(desconto(1000,10),900));
+          test('Recusar quantidade zero',()=>assert.throws(()=>subtotal([{preco:1000,quantidade:0}]),RangeError));
+          test('Pedido vazio tem subtotal zero',()=>assert.equal(subtotal([]),0));
+          test('Recusar preço negativo',()=>assert.throws(()=>subtotal([{preco:-10,quantidade:1}]),RangeError));
+          test('Cobrar frete abaixo do limite',()=>assert.equal(frete(1000),500));
+          test('Frete grátis no limite — defeito deliberado da aplicação fictícia',()=>assert.equal(frete(10000),0));
+          test('Combinar cupons — regra fora do escopo',{skip:true},()=>{});
+          });
+
+          EXTERNAL_EOF
+          set +e
+          node --test --test-reporter=junit --test-reporter-destination=external-evidence/junit.xml "$RUNNER_TEMP/pedidos-ficticios/pedido.test.mjs"
+          result=$?
+          set -e
+          test "$result" -eq 1
+          test -s external-evidence/junit.xml
+          printf '%s\n' "$result" > external-evidence/test-exit-code.txt
+      - name: Iniciar QA Metrics restrito ao runner
+        run: |
+          pnpm start > "$RUNNER_TEMP/qa-metrics.log" 2>&1 &
+          for attempt in $(seq 1 60); do
+            if curl -fsS http://localhost:3000/login > /dev/null; then exit 0; fi
+            sleep 2
+          done
+          exit 1
+      - name: Enviar relatório e conferir persistência e interface
+        run: |
+          mkdir -p .local
+          cat > .local/external-flow.mjs <<'FLOW_EOF'
+          import { chromium } from '@playwright/test';
+          import assert from 'node:assert/strict';
+          import {randomUUID} from 'node:crypto';
+          import {readFile,writeFile,mkdir} from 'node:fs/promises';
+          const base=process.env.EXPERIMENT_BASE_URL||'http://localhost:3000';
+          const output=process.env.EXPERIMENT_OUTPUT||'external-evidence';
+          await mkdir(output,{recursive:true});
+          const runId=process.env.GITHUB_RUN_ID||'local-preflight';
+          const branch=process.env.GITHUB_REF_NAME||'validacao-local';
+          const commit=process.env.GITHUB_SHA||'ef0e4167cfc3c10cc73095bbe77e62f79b461aeb';
+          const report=await readFile(process.env.EXTERNAL_JUNIT);
+          const xml=report.toString('utf8');
+          assert.equal((xml.match(/<testcase\b/g)||[]).length,8);
+          assert.equal((xml.match(/<failure\b/g)||[]).length,1);
+          assert.equal((xml.match(/<skipped\b/g)||[]).length,1);
+          const evidence={runner:process.env.GITHUB_ACTIONS==='true'?'github-actions':'local-preflight',context:{runId,branch,commit},expected:{total:8,passed:6,failed:1,skipped:1,denominator:7,passRate:600/7},checks:[]};
+          const browser=await chromium.launch({headless:true});
+          let page;
+          try {
+            const context=await browser.newContext({viewport:{width:1440,height:1000},baseURL:base});
+            page=await context.newPage();
+            const headers={Origin:base};
+            const signup=await page.request.post('/api/auth/sign-up/email',{headers,data:{name:'QA Experimento externo',email:`externo-${randomUUID()}@validation.invalid`,password:`Qa-${randomUUID()}`}});
+            assert.equal(signup.status(),200);evidence.syntheticUserId=(await signup.json()).user.id;
+            async function api(path,data,method='POST') {
+              const r=await page.request.fetch('/api/data/'+path,{method,headers,...(data===undefined?{}:{data})});
+              assert(r.ok(),`API ${path}: ${r.status()}`);return r.json();
+            }
+            const {project}=await api('projects',{name:'Pedidos fictícios — integração externa',clientName:'Cliente sintético'});
+            const control=(await api('projects',{name:'Projeto de controle — isolamento',clientName:'Cliente sintético'})).project;
+            evidence.syntheticProjectIds=[project.id,control.id];
+            const {token}=await api(`projects/${project.id}/tokens`,{name:'Token efêmero do experimento',days:1});
+            if(process.env.GITHUB_ACTIONS==='true')console.log('::add-mask::'+token.secret);
+            const metadata={provider:'github-actions',externalRunId:`externa-${runId}-${process.env.GITHUB_RUN_ATTEMPT||1}`,pipeline:'Suíte externa de pedidos fictícios',build:`E3-${runId}`,branch,commit,environment:'QA',release:'1.0-experimento'};
+            const multipart={file:{name:'externa.xml',mimeType:'application/xml',buffer:report},...metadata};
+            const sent=await page.request.post('/api/integrations/junit',{headers:{Authorization:'Bearer '+token.secret},multipart});
+            assert.equal(sent.status(),201);const received=await sent.json();
+            const repeated=await page.request.post('/api/integrations/junit',{headers:{Authorization:'Bearer '+token.secret},multipart});
+            assert.equal(repeated.status(),200);assert.equal((await repeated.json()).duplicate,true);
+            const {run}=await api(`projects/${project.id}/runs/${received.runId}`,undefined,'GET');
+            const statuses=run.results.reduce((a,r)=>(a[r.status]=(a[r.status]||0)+1,a),{});
+            assert.deepEqual(statuses,{PASSED:6,FAILED:1,SKIPPED:1});
+            assert.equal(run.projectId,project.id);assert.equal(run.build,metadata.build);assert.equal(run.branch,branch);assert.equal(run.commit,commit);
+            assert.equal(run.contextSnapshot.environment.name,'QA');assert.equal(run.contextSnapshot.release.version,'1.0-experimento');
+            assert.equal((await api(`projects/${control.id}/runs`,undefined,'GET')).runs.length,0);
+            const quality=await api(`projects/${project.id}/quality`,undefined,'GET');
+            assert.equal(quality.metrics.total,8);assert.equal(quality.metrics.passed,6);assert.equal(quality.metrics.failed,1);assert.equal(quality.metrics.skipped,1);assert.equal(quality.metrics.denominator,7);
+            assert(Math.abs(quality.metrics.passRate-600/7)<1e-9);
+            evidence.received={http:sent.status(),duplicateHttp:repeated.status(),projectId:project.id,runId:run.id,statuses,context:run.contextSnapshot,build:run.build,branch:run.branch,commit:run.commit};
+            evidence.indicators=quality.metrics;evidence.controlProjectRuns=0;
+            await page.goto(`/dashboard?project=${project.id}&tab=quality`);
+            await page.getByRole('heading',{name:'Comparação de builds',exact:true}).waitFor();
+            await page.getByText(metadata.build,{exact:false}).first().waitFor();
+            const text=await page.locator('#main-content').innerText();
+            assert(/86%/.test(text),'Taxa arredondada não encontrada na interface');
+            assert(text.includes(metadata.build),'Build ausente da interface');
+            await page.screenshot({path:output+'/qualidade.png',fullPage:true});
+            await page.goto(`/dashboard?project=${project.id}&tab=runs&run=${run.id}`);
+            await page.getByRole('dialog').waitFor();
+            await page.getByRole('dialog').getByText(/Suíte externa de pedidos fictícios/).first().waitFor();
+            await page.screenshot({path:output+'/execucao.png',fullPage:true});
+            evidence.received={http:sent.status(),duplicateHttp:repeated.status(),projectId:project.id,runId:run.id,statuses,context:run.contextSnapshot,build:run.build,branch:run.branch,commit:run.commit};
+            evidence.indicators=quality.metrics;evidence.controlProjectRuns=0;evidence.browser={passRateRounded:'86%',buildVisible:true};
+            evidence.status='PASS';
+            await api(`projects/${project.id}/tokens/${token.id}`,undefined,'DELETE');
+            const revoked=await page.request.post('/api/integrations/junit',{headers:{Authorization:'Bearer '+token.secret},multipart});assert.equal(revoked.status(),401);evidence.revokedHttp=401;
+          } catch(error) {evidence.status='FAIL';evidence.error=String(error);if(page)await page.screenshot({path:output+'/falha.png',fullPage:true}).catch(()=>{});throw error;}
+          finally {await writeFile(output+'/resultado.json',JSON.stringify(evidence,null,2));await browser.close();}
+
+          FLOW_EOF
+          node .local/external-flow.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tcc-integracao-externa
+          path: external-evidence/
+          retention-days: 7

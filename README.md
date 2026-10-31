@@ -167,6 +167,14 @@ Os E2E iniciam um servidor próprio na porta 3100 e cobrem autenticação, proje
 
 O workflow [.github/workflows/checks.yml](.github/workflows/checks.yml) executa lint, tipos, unitários, integração, build e E2E com PostgreSQL temporário. Consulte o [GitHub Actions](https://github.com/CissaMalheiros/QA-Metrics/actions) para os resultados remotos; resultados locais e remotos são independentes.
 
+### Demonstração da integração externa
+
+Em **Actions → Integração externa JUnit → Run workflow**, execute o workflow [tcc-external-validation.yml](.github/workflows/tcc-external-validation.yml). Ele prepara QA Metrics e PostgreSQL temporários no runner, executa uma suíte fictícia de pedidos independente da plataforma e envia seu JUnit à API com token restrito ao projeto. Não exige secrets permanentes ou hospedagem pública.
+
+O resultado previsto é **6 aprovações, 1 falha deliberada e 1 ignorado**, com **86%** no painel. O workflow verifica persistência, contexto, isolamento, reenvio e revogação do token, preservando relatório, resultados e capturas no artefato `tcc-integracao-externa` por sete dias. Seu sucesso indica fidelidade da integração, não aprovação de todos os testes da suíte fictícia. A demonstração remota já foi [executada e validada](https://github.com/CissaMalheiros/QA-Metrics/actions/runs/41147650913); a execução manual permite reproduzi-la.
+
+O artigo acadêmico, suas versões anteriores e os pacotes de evidências são entregues separadamente e não fazem parte do repositório.
+
 ## Estrutura e manutenção
 
 | Diretório | Conteúdo |

@@ -14,3 +14,6 @@ test-results/
 .agents/
 skills-lock.json
 /AGENTS.md
+/docs/tcc/
+/external-evidence/
+/TCC_QA_Metrics_*.docx
